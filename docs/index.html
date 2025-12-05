@@ -463,8 +463,14 @@
 </main>
 
 <script type="module">
-    import { DaisyBridge } from './daisy-bridge.js';
+    import { DaisyBridge } from './daisy-bridge.js?v=2.0';
     const daisy = new DaisyBridge();
+
+    // Verify bridge has required methods
+    console.log('DaisyBridge loaded:', {
+        hasSendParam: typeof daisy.sendParam === 'function',
+        hasConnect: typeof daisy.connect === 'function'
+    });
 
     // --- CONNECTION ---
     document.getElementById('connectBtn').addEventListener('click', async () => {
@@ -506,7 +512,14 @@
 
             // Send to Daisy
             if (daisy.isConnected && daisy.writer) {
-                daisy.sendParam(param, value);
+                if (typeof daisy.sendParam === 'function') {
+                    daisy.sendParam(param, value);
+                } else {
+                    // Fallback for old bridge version
+                    console.warn('Using fallback serial write');
+                    const message = `${param}:${value.toFixed(4)};\n`;
+                    daisy.writer.write(message).catch(err => console.error('Write failed:', err));
+                }
             }
         };
 
