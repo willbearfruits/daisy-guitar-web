@@ -1,6 +1,7 @@
 # Build Artifacts
 build/
 *.bin
+!docs/firmware/*.bin
 *.elf
 *.hex
 *.map
