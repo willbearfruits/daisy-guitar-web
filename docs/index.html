@@ -3,109 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daisy Guitar Control</title>
+    <title>Daisy Neuro-Link // FX Control</title>
     <style>
+        :root {
+            --bg: #050505;
+            --panel: #111;
+            --accent: #00ff88;
+            --text: #ccc;
+            --grid: rgba(0, 255, 136, 0.1);
+        }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #1a1a1a;
-            color: #f0f0f0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Courier New', monospace;
             margin: 0;
+            height: 100vh;
+            display: grid;
+            grid-template-rows: 60px 1fr 150px;
+            overflow: hidden;
         }
-        .container {
-            background-color: #2d2d2d;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            text-align: center;
-            width: 300px;
+
+        /* HEADER */
+        header {
+            background: var(--panel);
+            border-bottom: 1px solid var(--accent);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
         }
-        h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
-        button {
-            background-color: #e91e63;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            font-size: 1rem;
+        h1 { font-size: 1.2rem; letter-spacing: 2px; color: var(--accent); margin: 0; }
+        .status-led {
+            width: 10px; height: 10px;
+            background: #333;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 5px #000;
+            margin-right: 10px;
+        }
+        .status-led.on { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        
+        button#connectBtn {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 8px 16px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            font-family: inherit;
+            text-transform: uppercase;
+        }
+        button#connectBtn:hover { background: var(--accent); color: black; }
+
+        /* VISUALIZER */
+        #scope-container {
+            position: relative;
             width: 100%;
-            margin-bottom: 20px;
+            height: 100%;
+            background: 
+                linear-gradient(var(--grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 40px 40px;
         }
-        button:hover { background-color: #d81b60; }
-        button:disabled { background-color: #555; cursor: not-allowed; }
-        .control-group { margin-bottom: 1.5rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
-        input[type=range] {
-            width: 100%;
-            accent-color: #e91e63;
+        canvas { width: 100%; height: 100%; display: block; }
+
+        /* CONTROLS FOOTER */
+        footer {
+            background: var(--panel);
+            border-top: 1px solid #333;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            padding: 20px;
+            gap: 20px;
         }
-        .value-display {
-            font-family: monospace;
-            color: #e91e63;
-            font-size: 1.2rem;
+        
+        .knob-group {
+            text-align: center;
+            position: relative;
         }
-        .status {
+        .knob-label {
             font-size: 0.8rem;
+            margin-bottom: 10px;
             color: #888;
-            margin-top: 1rem;
         }
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px; width: 10px;
+            background: var(--accent);
+            cursor: pointer;
+            margin-top: -8px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            background: #333;
+        }
+        .val-display { font-size: 1.5rem; color: white; }
+
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Daisy Control</h1>
-    
-    <button id="connectBtn">Connect USB</button>
+<header>
+    <div><span class="status-led" id="led"></span> DAISY // NEURO-LINK</div>
+    <button id="connectBtn">INITIALIZE LINK</button>
+</header>
 
-    <div class="control-group">
-        <label>Digital Output Level</label>
-        <div class="value-display" id="valDisplay">0.50</div>
-        <input type="range" min="0" max="100" value="50" id="slider">
-    </div>
-
-    <div class="status" id="statusText">Status: Disconnected</div>
+<div id="scope-container">
+    <canvas id="visualizer"></canvas>
 </div>
+
+<footer>
+    <div class="knob-group">
+        <div class="knob-label">INPUT GAIN</div>
+        <div class="val-display" id="val1">0.50</div>
+        <input type="range" min="0" max="100" value="50" id="slider1">
+    </div>
+    <div class="knob-group">
+        <div class="knob-label">DRIVE</div>
+        <div class="val-display" id="val2">0.00</div>
+        <input type="range" min="0" max="100" value="0" id="slider2">
+    </div>
+    <div class="knob-group">
+        <div class="knob-label">CUTOFF</div>
+        <div class="val-display" id="val3">1.00</div>
+        <input type="range" min="0" max="100" value="100" id="slider3">
+    </div>
+    <div class="knob-group">
+        <div class="knob-label">RESONANCE</div>
+        <div class="val-display" id="val4">0.00</div>
+        <input type="range" min="0" max="100" value="0" id="slider4">
+    </div>
+</footer>
 
 <script type="module">
     import { DaisyBridge } from './daisy-bridge.js';
-
     const daisy = new DaisyBridge();
 
-    const connectBtn = document.getElementById('connectBtn');
-    const statusText = document.getElementById('statusText');
-    const slider = document.getElementById('slider');
-    const valDisplay = document.getElementById('valDisplay');
+    // --- VISUALIZER SETUP ---
+    const canvas = document.getElementById('visualizer');
+    const ctx = canvas.getContext('2d');
+    let audioCtx, analyser, dataArray;
 
-    // Check if Web Serial is supported
-    if (!("serial" in navigator)) {
-        statusText.innerText = "Web Serial not supported in this browser.";
-        connectBtn.disabled = true;
+    function resize() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        
+        // In a real browser security model, we can't always just "listen" to system audio 
+        // without a stream. For this demo, we'll visualize a dummy oscillator 
+        // OR if the user allows mic input.
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                const source = audioCtx.createMediaStreamSource(stream);
+                source.connect(analyser);
+                draw();
+            })
+            .catch(err => console.log("Audio viz requires mic permission or loopback", err));
     }
 
-    connectBtn.addEventListener('click', async () => {
+    function draw() {
+        requestAnimationFrame(draw);
+        analyser.getByteTimeDomainData(dataArray);
+
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#00ff88';
+        ctx.beginPath();
+
+        const sliceWidth = canvas.width * 1.0 / analyser.frequencyBinCount;
+        let x = 0;
+
+        for(let i = 0; i < analyser.frequencyBinCount; i++) {
+            const v = dataArray[i] / 128.0;
+            const y = v * canvas.height / 2;
+
+            if(i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+
+            x += sliceWidth;
+        }
+
+        ctx.lineTo(canvas.width, canvas.height / 2);
+        ctx.stroke();
+    }
+
+    // --- DAISY CONNECTION ---
+    document.getElementById('connectBtn').addEventListener('click', async () => {
+        initAudio(); // Start audio engine on click
         const success = await daisy.connect();
         if (success) {
-            statusText.innerText = "Status: Connected";
-            connectBtn.disabled = true;
-            connectBtn.innerText = "Connected";
-        } else {
-            statusText.innerText = "Status: Connection Failed";
+            document.getElementById('connectBtn').innerText = "LINK ESTABLISHED";
+            document.getElementById('led').classList.add('on');
         }
     });
 
-    slider.addEventListener('input', (e) => {
-        const val = (e.target.value / 100.0).toFixed(2);
-        valDisplay.innerText = val;
-        daisy.setGain(val);
+    // --- CONTROLS ---
+    const params = ['gain', 'drive', 'cutoff', 'res'];
+    
+    [1, 2, 3, 4].forEach((id, index) => {
+        const slider = document.getElementById(`slider${id}`);
+        const disp = document.getElementById(`val${id}`);
+        
+        slider.addEventListener('input', (e) => {
+            const val = (e.target.value / 100.0).toFixed(2);
+            disp.innerText = val;
+            
+            // Send: "gain:0.5;" or "drive:0.8;"
+            if(daisy.isConnected) {
+                // We use the bridge's direct writer if we want custom commands,
+                // or we extend the bridge. For now, let's assume setGain is generic enough
+                // or we manually send via private writer if we could.
+                // Let's use a raw write hack since we didn't update the bridge class yet:
+                if(daisy.writer) {
+                    daisy.writer.write(`${params[index]}:${val};\n`);
+                }
+            }
+        });
     });
-</script>
 
+</script>
 </body>
 </html>
