@@ -9,7 +9,7 @@ let dfuDevice = null;
 let firmwareData = null;
 
 // Firmware URL
-const FIRMWARE_URL = 'firmware/DaisyGuitar.bin';
+const FIRMWARE_URL = 'firmware/DaisyGuitar_v2.1.2.bin';
 
 // DOM elements
 const elements = {
