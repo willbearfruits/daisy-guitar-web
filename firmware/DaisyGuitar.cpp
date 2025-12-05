@@ -13,13 +13,13 @@ DaisySeed hw;
 // Channel 1 Effects
 Overdrive drive1;
 Svf filter1;
-DelayLine<float, 48000> del1;
+DelayLine<float, MAX_DELAY_SAMPLES> del1;
 Chorus chorus1;
 
 // Channel 2 Effects
 Overdrive drive2;
 Svf filter2;
-DelayLine<float, 48000> del2;
+DelayLine<float, MAX_DELAY_SAMPLES> del2;
 Chorus chorus2;
 
 // Shared/Master Effects
@@ -67,9 +67,13 @@ FilterMode ch2_filter_mode = LOWPASS;
 char serial_buf[128];
 int buf_pos = 0;
 
-// Delay write positions
-size_t del1_pos = 0;
-size_t del2_pos = 0;
+// Constants
+constexpr float SAMPLE_RATE = 48000.0f;
+constexpr size_t MAX_DELAY_SAMPLES = 48000;
+constexpr float CROSS_MOD_FREQ_RANGE = 5000.0f;
+constexpr float REVERB_LP_FREQ = 18000.0f;
+constexpr size_t AUDIO_BLOCK_SIZE = 4;
+constexpr uint32_t MAIN_LOOP_DELAY_MS = 1;
 
 /**
  * Soft clipping function for musical saturation
@@ -100,6 +104,10 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         float ch1_in = in[0][i];
         float ch2_in = in[1][i];
 
+        // Validate inputs (protect against NaN/Inf)
+        if(!std::isfinite(ch1_in)) ch1_in = 0.0f;
+        if(!std::isfinite(ch2_in)) ch2_in = 0.0f;
+
         // ========== CHANNEL 1 PROCESSING ==========
 
         // Input gain
@@ -112,7 +120,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         // Filter with cross-modulation from channel 2
         float ch1_mod_freq = ch1_filter_freq;
         if (cross_mod_amt > 0.0f) {
-            ch1_mod_freq += (ch2_in * cross_mod_amt * 5000.0f); // Ch2 modulates Ch1 filter
+            ch1_mod_freq += (ch2_in * cross_mod_amt * CROSS_MOD_FREQ_RANGE);
             ch1_mod_freq = fclamp(ch1_mod_freq, 20.0f, 20000.0f);
         }
         filter1.SetFreq(ch1_mod_freq);
@@ -155,7 +163,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         // Filter with cross-modulation from channel 1
         float ch2_mod_freq = ch2_filter_freq;
         if (cross_mod_amt > 0.0f) {
-            ch2_mod_freq += (ch1_in * cross_mod_amt * 5000.0f); // Ch1 modulates Ch2 filter
+            ch2_mod_freq += (ch1_in * cross_mod_amt * CROSS_MOD_FREQ_RANGE);
             ch2_mod_freq = fclamp(ch2_mod_freq, 20.0f, 20000.0f);
         }
         filter2.SetFreq(ch2_mod_freq);
@@ -212,6 +220,10 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         ch1 = SoftClip(ch1 * master_gain);
         ch2 = SoftClip(ch2 * master_gain);
 
+        // Final safety check
+        if(!std::isfinite(ch1)) ch1 = 0.0f;
+        if(!std::isfinite(ch2)) ch2 = 0.0f;
+
         out[0][i] = ch1;
         out[1][i] = ch2;
     }
@@ -241,7 +253,8 @@ void ProcessSerial()
             char param_name[64];
             float val;
 
-            if(sscanf(serial_buf, "%[^:]:%f", param_name, &val) == 2)
+            // FIX: Add width specifier to prevent buffer overflow
+            if(sscanf(serial_buf, "%63[^:]:%f", param_name, &val) == 2)
             {
                 // Channel 1 parameters
                 if(strcmp(param_name, "ch1_gain") == 0)           ch1_gain = fclamp(val, 0.0f, 2.0f);
@@ -283,7 +296,7 @@ void ProcessSerial()
 
                 // Update reverb parameters
                 reverb.SetFeedback(reverb_time);
-                reverb.SetLpFreq(18000.0f);
+                reverb.SetLpFreq(REVERB_LP_FREQ);
             }
 
             buf_pos = 0;
@@ -293,6 +306,11 @@ void ProcessSerial()
             if(buf_pos < 127)
             {
                 serial_buf[buf_pos++] = c;
+            }
+            else
+            {
+                // FIX: Buffer overflow protection - reset on overflow
+                buf_pos = 0;
             }
         }
     }
@@ -304,7 +322,7 @@ int main(void)
     hw.Init();
 
     // 2. Configure Audio
-    hw.SetAudioBlockSize(4); // Low latency
+    hw.SetAudioBlockSize(AUDIO_BLOCK_SIZE); // Low latency
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
 
     // 3. Initialize USB Serial
@@ -328,7 +346,7 @@ int main(void)
     // Master effects
     reverb.Init(sample_rate);
     reverb.SetFeedback(0.85f);
-    reverb.SetLpFreq(18000.0f);
+    reverb.SetLpFreq(REVERB_LP_FREQ);
 
     // 5. Start Audio
     hw.StartAudio(AudioCallback);
@@ -337,6 +355,6 @@ int main(void)
     while(1)
     {
         ProcessSerial();
-        System::Delay(1);
+        System::Delay(MAIN_LOOP_DELAY_MS);
     }
 }
