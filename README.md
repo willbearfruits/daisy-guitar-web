@@ -95,10 +95,13 @@ python3 -m http.server 8000
 ```
 
 #### GitHub Pages Hosting
-1. Push this repository to GitHub
-2. Enable GitHub Pages in repository settings
-3. Set source to `main` branch, `/docs` folder
-4. Access at `https://yourusername.github.io/dp/`
+The project is deployed at:
+**https://willbearfruits.github.io/daisy-guitar-web/**
+
+To update deployment:
+1. Make changes and commit
+2. Push to master branch
+3. GitHub Pages automatically rebuilds from `/docs` folder
 
 #### Connecting to Daisy
 1. Flash firmware to Daisy Seed
