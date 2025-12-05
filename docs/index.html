@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daisy Guitar Control</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #2d2d2d;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            text-align: center;
+            width: 300px;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+        button {
+            background-color: #e91e63;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        button:hover { background-color: #d81b60; }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+        .control-group { margin-bottom: 1.5rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+        input[type=range] {
+            width: 100%;
+            accent-color: #e91e63;
+        }
+        .value-display {
+            font-family: monospace;
+            color: #e91e63;
+            font-size: 1.2rem;
+        }
+        .status {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Daisy Control</h1>
+    
+    <button id="connectBtn">Connect USB</button>
+
+    <div class="control-group">
+        <label>Digital Output Level</label>
+        <div class="value-display" id="valDisplay">0.50</div>
+        <input type="range" min="0" max="100" value="50" id="slider">
+    </div>
+
+    <div class="status" id="statusText">Status: Disconnected</div>
+</div>
+
+<script type="module">
+    import { DaisyBridge } from './daisy-bridge.js';
+
+    const daisy = new DaisyBridge();
+
+    const connectBtn = document.getElementById('connectBtn');
+    const statusText = document.getElementById('statusText');
+    const slider = document.getElementById('slider');
+    const valDisplay = document.getElementById('valDisplay');
+
+    // Check if Web Serial is supported
+    if (!("serial" in navigator)) {
+        statusText.innerText = "Web Serial not supported in this browser.";
+        connectBtn.disabled = true;
+    }
+
+    connectBtn.addEventListener('click', async () => {
+        const success = await daisy.connect();
+        if (success) {
+            statusText.innerText = "Status: Connected";
+            connectBtn.disabled = true;
+            connectBtn.innerText = "Connected";
+        } else {
+            statusText.innerText = "Status: Connection Failed";
+        }
+    });
+
+    slider.addEventListener('input', (e) => {
+        const val = (e.target.value / 100.0).toFixed(2);
+        valDisplay.innerText = val;
+        daisy.setGain(val);
+    });
+</script>
+
+</body>
+</html>

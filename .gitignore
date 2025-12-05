@@ -1,0 +1,17 @@
+# Build Artifacts
+build/
+*.bin
+*.elf
+*.hex
+*.map
+*.o
+*.d
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
