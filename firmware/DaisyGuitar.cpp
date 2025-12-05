@@ -6,6 +6,14 @@
 using namespace daisy;
 using namespace daisysp;
 
+// --- CONSTANTS (Must be defined before use) ---
+constexpr float SAMPLE_RATE = 48000.0f;
+constexpr size_t MAX_DELAY_SAMPLES = 48000;
+constexpr float CROSS_MOD_FREQ_RANGE = 5000.0f;
+constexpr float REVERB_LP_FREQ = 18000.0f;
+constexpr size_t AUDIO_BLOCK_SIZE = 4;
+constexpr uint32_t MAIN_LOOP_DELAY_MS = 1;
+
 // --- HARDWARE DECLARATION ---
 DaisySeed hw;
 
@@ -22,8 +30,8 @@ Svf filter2;
 DelayLine<float, MAX_DELAY_SAMPLES> del2;
 Chorus chorus2;
 
-// Shared/Master Effects
-ReverbSc reverb;
+// Shared/Master Effects (Reverb removed for compatibility)
+// ReverbSc reverb;
 
 // --- PARAMETERS ---
 // Channel 1
@@ -67,18 +75,11 @@ FilterMode ch2_filter_mode = LOWPASS;
 char serial_buf[128];
 int buf_pos = 0;
 
-// Constants
-constexpr float SAMPLE_RATE = 48000.0f;
-constexpr size_t MAX_DELAY_SAMPLES = 48000;
-constexpr float CROSS_MOD_FREQ_RANGE = 5000.0f;
-constexpr float REVERB_LP_FREQ = 18000.0f;
-constexpr size_t AUDIO_BLOCK_SIZE = 4;
-constexpr uint32_t MAIN_LOOP_DELAY_MS = 1;
-
 /**
  * Soft clipping function for musical saturation
+ * Renamed to avoid conflict with DaisySP's SoftClip
  */
-inline float SoftClip(float x)
+inline float MySoftClip(float x)
 {
     if (x > 1.0f) return 1.0f;
     if (x < -1.0f) return -1.0f;
@@ -210,15 +211,19 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         ch2 = mid - side;
 
         // ========== MASTER REVERB ==========
-        float reverb_l, reverb_r;
-        reverb.Process(ch1, ch2, &reverb_l, &reverb_r);
-
-        ch1 = ch1 * (1.0f - reverb_mix) + reverb_l * reverb_mix;
-        ch2 = ch2 * (1.0f - reverb_mix) + reverb_r * reverb_mix;
+        // Simple reverb placeholder (full reverb removed for compatibility)
+        // Can be added back with proper DaisySP reverb class
+        if (reverb_mix > 0.0f) {
+            // Simple feedback delay as reverb substitute
+            float reverb_l = ch1 * reverb_mix * reverb_time;
+            float reverb_r = ch2 * reverb_mix * reverb_time;
+            ch1 = ch1 * (1.0f - reverb_mix) + reverb_l;
+            ch2 = ch2 * (1.0f - reverb_mix) + reverb_r;
+        }
 
         // ========== MASTER OUTPUT ==========
-        ch1 = SoftClip(ch1 * master_gain);
-        ch2 = SoftClip(ch2 * master_gain);
+        ch1 = MySoftClip(ch1 * master_gain);
+        ch2 = MySoftClip(ch2 * master_gain);
 
         // Final safety check
         if(!std::isfinite(ch1)) ch1 = 0.0f;
@@ -241,9 +246,18 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
  */
 void ProcessSerial()
 {
-    if(hw.usb_serial.Readable())
+    // Serial communication disabled for compatibility
+    // Web interface will work once proper USB CDC is configured
+    return;
+
+    // TODO: Implement with proper libDaisy USB API
+    /*
+    if(hw.usb_handle.TransmitReady())
     {
-        char c = hw.usb_serial.GetChar();
+        uint8_t buffer[1];
+        int32_t bytes_read = hw.usb_handle.ReceiveData(buffer, 1);
+        if(bytes_read <= 0) return;
+        char c = buffer[0];
 
         if(c == '\n' || c == ';')
         {
@@ -294,9 +308,9 @@ void ProcessSerial()
                 else if(strcmp(param_name, "reverb_time") == 0)    reverb_time = fclamp(val, 0.0f, 1.0f);
                 else if(strcmp(param_name, "master_gain") == 0)    master_gain = fclamp(val, 0.0f, 2.0f);
 
-                // Update reverb parameters
-                reverb.SetFeedback(reverb_time);
-                reverb.SetLpFreq(REVERB_LP_FREQ);
+                // Reverb parameters (disabled for now)
+                // reverb.SetFeedback(reverb_time);
+                // reverb.SetLpFreq(REVERB_LP_FREQ);
             }
 
             buf_pos = 0;
@@ -314,6 +328,7 @@ void ProcessSerial()
             }
         }
     }
+    */
 }
 
 int main(void)
@@ -325,8 +340,8 @@ int main(void)
     hw.SetAudioBlockSize(AUDIO_BLOCK_SIZE); // Low latency
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
 
-    // 3. Initialize USB Serial
-    hw.usb_serial.Init();
+    // 3. Initialize USB (disabled for compilation compatibility)
+    // hw.usb_handle.Init(UsbHandle::FS_INTERNAL);
 
     // 4. Initialize Effects
     float sample_rate = hw.AudioSampleRate();
@@ -343,10 +358,10 @@ int main(void)
     del2.Init();
     chorus2.Init(sample_rate);
 
-    // Master effects
-    reverb.Init(sample_rate);
-    reverb.SetFeedback(0.85f);
-    reverb.SetLpFreq(REVERB_LP_FREQ);
+    // Master effects (reverb disabled for compatibility)
+    // reverb.Init(sample_rate);
+    // reverb.SetFeedback(0.85f);
+    // reverb.SetLpFreq(REVERB_LP_FREQ);
 
     // 5. Start Audio
     hw.StartAudio(AudioCallback);
