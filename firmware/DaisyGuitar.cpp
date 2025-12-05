@@ -11,7 +11,7 @@ constexpr float SAMPLE_RATE = 48000.0f;
 constexpr size_t MAX_DELAY_SAMPLES = 48000;
 constexpr float CROSS_MOD_FREQ_RANGE = 5000.0f;
 constexpr float REVERB_LP_FREQ = 18000.0f;
-constexpr size_t AUDIO_BLOCK_SIZE = 4;
+constexpr size_t AUDIO_BLOCK_SIZE = 48;
 constexpr uint32_t MAIN_LOOP_DELAY_MS = 1;
 
 // --- HARDWARE DECLARATION ---
@@ -21,13 +21,13 @@ DaisySeed hw;
 // Channel 1 Effects
 Overdrive drive1;
 Svf filter1;
-DelayLine<float, MAX_DELAY_SAMPLES> del1;
+DelayLine<float, MAX_DELAY_SAMPLES> DSY_SDRAM_BSS del1;
 Chorus chorus1;
 
 // Channel 2 Effects
 Overdrive drive2;
 Svf filter2;
-DelayLine<float, MAX_DELAY_SAMPLES> del2;
+DelayLine<float, MAX_DELAY_SAMPLES> DSY_SDRAM_BSS del2;
 Chorus chorus2;
 
 // Shared/Master Effects (Reverb removed for compatibility)
@@ -371,9 +371,21 @@ int main(void)
     hw.StartAudio(AudioCallback);
 
     // 6. Main Loop
+    bool led_state = true;
+    uint32_t last_blink = System::GetNow();
+
     while(1)
     {
         ProcessSerial();
+        
+        // Heartbeat LED (1Hz)
+        if(System::GetNow() - last_blink > 500)
+        {
+            last_blink = System::GetNow();
+            led_state = !led_state;
+            hw.SetLed(led_state);
+        }
+
         System::Delay(MAIN_LOOP_DELAY_MS);
     }
 }

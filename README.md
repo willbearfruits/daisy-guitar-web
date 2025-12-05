@@ -1,8 +1,13 @@
 # DP // Dual Processing Guitar FX
 
-**Version 2.1** - A professional dual-channel, real-time guitar effects processor for the [Electro-Smith Daisy Seed](https://www.electro-smith.com/daisy/daisy-seed) with comprehensive web-based control and browser-based firmware flashing.
+**Version 2.1.1** - A professional dual-channel, real-time guitar effects processor for the [Electro-Smith Daisy Seed](https://www.electro-smith.com/daisy/daisy-seed) with comprehensive web-based control and browser-based firmware flashing.
 
 ## 🎸 Features
+
+### New in v2.1.1
+- **Improved Stability:** Optimized audio block size (48 samples) to ensure reliable USB connection.
+- **Heartbeat LED:** On-board LED blinks (1Hz) to indicate the system is running.
+- **Memory Optimization:** Delay lines moved to SDRAM, freeing up internal memory.
 
 ### Dual Channel Architecture
 - **2 Independent Guitar Inputs** with full stereo processing
