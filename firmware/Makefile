@@ -5,10 +5,10 @@ TARGET = DaisyGuitar
 CPP_SOURCES = DaisyGuitar.cpp
 
 # Library Locations
-# Adjust these paths if your libDaisy/DaisySP are located elsewhere
-# Now relative to: /dp/firmware/
-LIBDAISY_DIR ?= ../../../libDaisy
-DAISYSP_DIR ?= ../../../DaisySP
+# Using environment variable or default to ~/DaisyExamples/
+# Override with: make LIBDAISY_DIR=/path/to/libDaisy
+LIBDAISY_DIR ?= $(HOME)/DaisyExamples/libDaisy
+DAISYSP_DIR ?= $(HOME)/DaisyExamples/DaisySP
 
 # Core location, and generic Makefile.
 SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core

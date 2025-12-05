@@ -1,34 +1,250 @@
-# Daisy Guitar Project
+# DP // Dual Processing Guitar FX
 
-A real-time, web-controlled guitar effects processor for the [Electro-Smith Daisy Seed](https://www.electro-smith.com/daisy/daisy-seed).
+A professional dual-channel, real-time guitar effects processor for the [Electro-Smith Daisy Seed](https://www.electro-smith.com/daisy/daisy-seed) with comprehensive web-based GUI control.
 
-**Features:**
-- 🎸 **High-Z Input Support:** designed for use with a simple Op-Amp buffer or LPB-2 booster.
-- 🎛️ **Web GUI:** Control gain and parameters in real-time via Web Serial (USB).
-- 🚀 **Zero-Cost Hosting:** GUI runs entirely on GitHub Pages.
+## 🎸 Features
 
-## 📂 Structure
-- **`firmware/`**: C++ Source code for the Daisy Seed.
-- **`docs/`**: The Web Interface (HTML/JS). Served via GitHub Pages.
+### Dual Channel Architecture
+- **2 Independent Guitar Inputs** with full stereo processing
+- **2 Outputs** with pristine audio quality
+- Separate effect chains per channel
+- Cross-channel modulation and routing
+
+### Effects Per Channel
+- **Input Gain** - 0-2x adjustable gain staging
+- **Overdrive** - Musical tube-style saturation
+- **State Variable Filter** - Lowpass, Bandpass, or Highpass modes
+  - Frequency: 20Hz - 20kHz
+  - Resonance: 0-100%
+- **Delay** - Up to 1 second with feedback control
+- **Chorus** - Rich modulation with adjustable depth and rate
+
+### Cross-Channel Features
+- **Cross Modulation** - Channel 1 modulates Channel 2 filter (and vice versa)
+- **Channel Bleed** - Mix signals between channels for creative routing
+- **Stereo Width** - Mid-side processing for stereo field control
+- **Master Reverb** - Lush stereo reverb with time and mix controls
+- **Master Gain** - Final output level control
+
+### Web GUI Control
+- **Real-time USB Serial communication**
+- **Dual-panel interface** with color-coded channels
+- **All parameters controllable** from the browser
+- **No installation required** - runs entirely in browser
+- Works with Chrome, Edge, Opera (Web Serial API support)
+
+## 📂 Project Structure
+
+```
+dp/
+├── firmware/
+│   ├── DaisyGuitar.cpp    # Main Daisy Seed firmware
+│   └── Makefile           # Build configuration
+├── docs/
+│   ├── index.html         # Web GUI interface
+│   └── daisy-bridge.js    # Web Serial API bridge
+└── README.md
+```
 
 ## 🛠️ Getting Started
 
-### 1. Build the Hardware
-Connect your guitar input to the Daisy Seed (Pin 16) using a buffer or booster (see [Hardware Guide](hardware_guide.md)).
+### Prerequisites
 
-### 2. Flash the Firmware
-1. Navigate to the firmware folder:
+1. **Hardware:**
+   - Daisy Seed development board
+   - USB cable (data capable)
+   - Two guitar inputs (1/4" jacks with appropriate buffer circuits)
+   - Audio interface or amp for outputs
+
+2. **Software:**
+   - libDaisy and DaisySP libraries
+   - ARM GCC toolchain
+   - `dfu-util` for flashing
+   - Modern web browser (Chrome, Edge, or Opera)
+
+### Building the Firmware
+
+1. **Clone and setup dependencies:**
    ```bash
    cd firmware
+   # Ensure libDaisy and DaisySP are installed at ../../libDaisy and ../../DaisySP
    ```
-2. Put Daisy in DFU Mode (Hold BOOT, Press RESET).
-3. Compile and Flash:
+
+2. **Build the firmware:**
    ```bash
    make clean
+   make
+   ```
+
+3. **Flash to Daisy Seed:**
+   - Hold BOOT button on Daisy
+   - Press and release RESET button
+   - Release BOOT button (Daisy enters DFU mode)
+   - Run:
+   ```bash
    make program-dfu
    ```
 
-### 3. Control via Web
-1. Go to the [Live GUI](https://glitches.github.io/dp/docs/) (Link will work after you enable GitHub Pages).
-2. Connect USB.
-3. Rock out.
+### Using the Web GUI
+
+#### Local Testing
+```bash
+cd docs
+python3 -m http.server 8000
+# Open http://localhost:8000 in Chrome/Edge/Opera
+```
+
+#### GitHub Pages Hosting
+1. Push this repository to GitHub
+2. Enable GitHub Pages in repository settings
+3. Set source to `main` branch, `/docs` folder
+4. Access at `https://yourusername.github.io/dp/`
+
+#### Connecting to Daisy
+1. Flash firmware to Daisy Seed
+2. Connect Daisy to computer via USB
+3. Open the web GUI
+4. Click "INITIALIZE LINK"
+5. Select the Daisy's serial port
+6. Start tweaking parameters in real-time!
+
+## 🎛️ Parameter Reference
+
+### Channel 1 & 2 Parameters
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| `ch1_gain` / `ch2_gain` | 0.0 - 2.0 | 1.0 | Input gain level |
+| `ch1_drive` / `ch2_drive` | 0.0 - 1.0 | 0.0 | Overdrive amount |
+| `ch1_filter_mode` / `ch2_filter_mode` | 0, 1, 2 | 0 | 0=LP, 1=BP, 2=HP |
+| `ch1_filter_freq` / `ch2_filter_freq` | 20 - 20000 | 10000 | Filter cutoff (Hz) |
+| `ch1_filter_res` / `ch2_filter_res` | 0.0 - 1.0 | 0.1 | Filter resonance |
+| `ch1_delay_time` / `ch2_delay_time` | 0.0 - 1.0 | 0.0 | Delay time (seconds) |
+| `ch1_delay_fb` / `ch2_delay_fb` | 0.0 - 0.95 | 0.0 | Delay feedback |
+| `ch1_delay_mix` / `ch2_delay_mix` | 0.0 - 1.0 | 0.0 | Delay wet/dry mix |
+| `ch1_chorus_depth` / `ch2_chorus_depth` | 0.0 - 1.0 | 0.0 | Chorus depth |
+| `ch1_chorus_rate` / `ch2_chorus_rate` | 0.01 - 10.0 | 0.5 | Chorus LFO rate (Hz) |
+
+### Master Parameters
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| `cross_mod` | 0.0 - 1.0 | 0.0 | Cross-channel filter modulation |
+| `cross_bleed` | 0.0 - 1.0 | 0.0 | Channel mixing amount |
+| `stereo_width` | 0.0 - 2.0 | 1.0 | Stereo field width |
+| `reverb_time` | 0.0 - 1.0 | 0.5 | Reverb decay time |
+| `reverb_mix` | 0.0 - 1.0 | 0.0 | Reverb wet/dry mix |
+| `master_gain` | 0.0 - 2.0 | 1.0 | Final output level |
+
+## 🔧 Hardware Connections
+
+### Audio I/O (Daisy Seed)
+- **Input 1:** Pin 16 (ADC 0) - Guitar input (requires buffer/preamp)
+- **Input 2:** Pin 17 (ADC 1) - Second guitar input
+- **Output 1:** Pin 18 (DAC 0) - Left/Channel 1 output
+- **Output 2:** Pin 19 (DAC 1) - Right/Channel 2 output
+
+### Recommended Input Circuit
+For optimal guitar input impedance, use one of:
+1. **Op-amp buffer** (TL072, OPA2134)
+2. **LPB-1/LPB-2 style booster** circuit
+3. **Commercial guitar preamp** (DI box with line out)
+
+Guitar pickups need ~1MΩ input impedance, but Daisy's ADC inputs are much lower. A buffer circuit is essential for proper tone and loading.
+
+## 🧪 Signal Flow
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      Channel 1                          │
+│  Guitar 1 → Gain → Drive → Filter* → Delay → Chorus    │
+└────────────────────────────┬────────────────────────────┘
+                             │
+                    Cross Modulation
+                             │
+┌────────────────────────────┴────────────────────────────┐
+│                      Channel 2                          │
+│  Guitar 2 → Gain → Drive → Filter* → Delay → Chorus    │
+└─────────────────────────────────────────────────────────┘
+                             ↓
+                    Channel Bleed Mix
+                             ↓
+                    Stereo Width Control
+                             ↓
+                      Master Reverb
+                             ↓
+                    Soft Clip + Master Gain
+                             ↓
+                      Stereo Output
+
+* Filters can be modulated by opposite channel input signal
+```
+
+## 🚀 Performance
+
+- **Sample Rate:** 48 kHz
+- **Block Size:** 4 samples (ultra-low latency)
+- **Processing:** Fixed-point and floating-point optimized
+- **Latency:** < 1ms analog-to-analog
+- **USB Serial:** 9600 baud (sufficient for parameter updates)
+
+## 💡 Creative Ideas
+
+### Cross-Modulation Experiments
+- Set `cross_mod` to 0.5+ and play different rhythms on each guitar
+- Channel 1's dynamics will sweep Channel 2's filter (and vice versa)
+- Creates complex, evolving tones
+
+### Ping-Pong Delays
+- Set different delay times on each channel
+- Add `cross_bleed` to route delays between channels
+- Adjust `stereo_width` for spatial effects
+
+### Dual Amp Simulation
+- Different filter modes per channel (LP on Ch1, HP on Ch2)
+- Different drive amounts for clean/dirty blend
+- Use `cross_bleed` to mix to taste
+
+## 📝 Protocol Reference
+
+The firmware accepts ASCII commands over USB Serial:
+```
+<parameter_name>:<float_value>;\n
+```
+
+Examples:
+```
+ch1_gain:1.5;
+ch2_drive:0.8;
+cross_mod:0.3;
+reverb_mix:0.25;
+```
+
+## 🔍 Troubleshooting
+
+**GUI won't connect:**
+- Ensure you're using Chrome, Edge, or Opera
+- Check that Daisy is powered and in normal run mode (not DFU)
+- Try unplugging and reconnecting USB
+
+**No audio output:**
+- Verify audio connections
+- Check input gain levels aren't at 0
+- Ensure master gain isn't at 0
+- Verify Daisy is running firmware (LED should blink if configured)
+
+**Distorted output:**
+- Reduce input gain
+- Lower drive amount
+- Reduce master gain
+- Check for clipping at input stage
+
+## 📄 License
+
+Open source project. Use, modify, and share freely.
+
+## 🙏 Credits
+
+- Built with [libDaisy](https://github.com/electro-smith/libDaisy) and [DaisySP](https://github.com/electro-smith/DaisySP)
+- Developed for the Electro-Smith Daisy Seed platform
+- Web Serial API for browser-based control

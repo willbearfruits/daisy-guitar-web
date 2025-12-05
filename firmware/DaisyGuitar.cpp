@@ -9,73 +9,288 @@ using namespace daisysp;
 // --- HARDWARE DECLARATION ---
 DaisySeed hw;
 
-// --- GLOBAL VARIABLES ---
-float gain_level = 0.5f; // Default gain (controlled via USB)
-char serial_buf[64];     // Buffer for incoming USB serial commands
-int buf_pos = 0;         // Current position in buffer
+// --- EFFECTS MODULES ---
+// Channel 1 Effects
+Overdrive drive1;
+Svf filter1;
+DelayLine<float, 48000> del1;
+Chorus chorus1;
+
+// Channel 2 Effects
+Overdrive drive2;
+Svf filter2;
+DelayLine<float, 48000> del2;
+Chorus chorus2;
+
+// Shared/Master Effects
+ReverbSc reverb;
+
+// --- PARAMETERS ---
+// Channel 1
+float ch1_gain = 1.0f;
+float ch1_drive = 0.0f;
+float ch1_filter_freq = 10000.0f;
+float ch1_filter_res = 0.1f;
+float ch1_delay_time = 0.0f;
+float ch1_delay_feedback = 0.0f;
+float ch1_delay_mix = 0.0f;
+float ch1_chorus_depth = 0.0f;
+float ch1_chorus_rate = 0.5f;
+
+// Channel 2
+float ch2_gain = 1.0f;
+float ch2_drive = 0.0f;
+float ch2_filter_freq = 10000.0f;
+float ch2_filter_res = 0.1f;
+float ch2_delay_time = 0.0f;
+float ch2_delay_feedback = 0.0f;
+float ch2_delay_mix = 0.0f;
+float ch2_chorus_depth = 0.0f;
+float ch2_chorus_rate = 0.5f;
+
+// Cross-channel modulation
+float cross_mod_amt = 0.0f;      // Amount of cross-modulation
+float cross_bleed = 0.0f;        // How much channel 1 bleeds into channel 2 and vice versa
+float stereo_width = 1.0f;       // Stereo width control
+
+// Master
+float reverb_mix = 0.0f;
+float reverb_time = 0.5f;
+float master_gain = 1.0f;
+
+// Filter types
+enum FilterMode { LOWPASS = 0, BANDPASS = 1, HIGHPASS = 2 };
+FilterMode ch1_filter_mode = LOWPASS;
+FilterMode ch2_filter_mode = LOWPASS;
+
+// Serial buffer
+char serial_buf[128];
+int buf_pos = 0;
+
+// Delay write positions
+size_t del1_pos = 0;
+size_t del2_pos = 0;
 
 /**
- * Audio Callback
- * Handles real-time audio processing.
- * 
- * HARDWARE CONNECTIONS:
- * Input:  Daisy Seed "Audio In" pins (Pin 16 & 17 usually)
- * Output: Daisy Seed "Audio Out" pins (Pin 18 & 19 usually)
+ * Soft clipping function for musical saturation
+ */
+inline float SoftClip(float x)
+{
+    if (x > 1.0f) return 1.0f;
+    if (x < -1.0f) return -1.0f;
+    return x - (x * x * x) / 3.0f;
+}
+
+/**
+ * Audio Callback - Dual Channel Processing
+ *
+ * SIGNAL FLOW PER CHANNEL:
+ * Guitar In → Gain → Drive → Filter → Delay → Chorus → Reverb → Out
+ *
+ * CROSS-CHANNEL:
+ * - Channel 1 can modulate Channel 2 filter frequency
+ * - Channel 2 can modulate Channel 1 filter frequency
+ * - Cross-bleed mixes channels together
  */
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size)
 {
     for(size_t i = 0; i < size; i++)
     {
-        // Get Input Samples (Left and Right)
-        float left_in = in[0][i];
-        float right_in = in[1][i];
+        // ========== READ INPUTS ==========
+        float ch1_in = in[0][i];
+        float ch2_in = in[1][i];
 
-        // Apply Gain (Volume Control)
-        // This is a simple multiplication. 
-        // 1.0 = Unity Gain, 0.5 = Half Volume, 2.0 = Double Volume
-        out[0][i] = left_in * gain_level;
-        out[1][i] = right_in * gain_level;
+        // ========== CHANNEL 1 PROCESSING ==========
+
+        // Input gain
+        float ch1 = ch1_in * ch1_gain;
+
+        // Overdrive
+        drive1.SetDrive(ch1_drive);
+        ch1 = drive1.Process(ch1);
+
+        // Filter with cross-modulation from channel 2
+        float ch1_mod_freq = ch1_filter_freq;
+        if (cross_mod_amt > 0.0f) {
+            ch1_mod_freq += (ch2_in * cross_mod_amt * 5000.0f); // Ch2 modulates Ch1 filter
+            ch1_mod_freq = fclamp(ch1_mod_freq, 20.0f, 20000.0f);
+        }
+        filter1.SetFreq(ch1_mod_freq);
+        filter1.SetRes(ch1_filter_res);
+        filter1.Process(ch1);
+
+        // Select filter output based on mode
+        switch(ch1_filter_mode) {
+            case LOWPASS:  ch1 = filter1.Low();  break;
+            case BANDPASS: ch1 = filter1.Band(); break;
+            case HIGHPASS: ch1 = filter1.High(); break;
+        }
+
+        // Delay
+        if (ch1_delay_mix > 0.0f) {
+            size_t delay_samples = static_cast<size_t>(ch1_delay_time * 48000.0f);
+            float delayed = del1.Read(delay_samples);
+            del1.Write(ch1 + (delayed * ch1_delay_feedback));
+            ch1 = ch1 * (1.0f - ch1_delay_mix) + delayed * ch1_delay_mix;
+        } else {
+            del1.Write(ch1);
+        }
+
+        // Chorus
+        if (ch1_chorus_depth > 0.0f) {
+            chorus1.SetLfoDepth(ch1_chorus_depth);
+            chorus1.SetLfoFreq(ch1_chorus_rate);
+            ch1 = chorus1.Process(ch1);
+        }
+
+        // ========== CHANNEL 2 PROCESSING ==========
+
+        // Input gain
+        float ch2 = ch2_in * ch2_gain;
+
+        // Overdrive
+        drive2.SetDrive(ch2_drive);
+        ch2 = drive2.Process(ch2);
+
+        // Filter with cross-modulation from channel 1
+        float ch2_mod_freq = ch2_filter_freq;
+        if (cross_mod_amt > 0.0f) {
+            ch2_mod_freq += (ch1_in * cross_mod_amt * 5000.0f); // Ch1 modulates Ch2 filter
+            ch2_mod_freq = fclamp(ch2_mod_freq, 20.0f, 20000.0f);
+        }
+        filter2.SetFreq(ch2_mod_freq);
+        filter2.SetRes(ch2_filter_res);
+        filter2.Process(ch2);
+
+        // Select filter output based on mode
+        switch(ch2_filter_mode) {
+            case LOWPASS:  ch2 = filter2.Low();  break;
+            case BANDPASS: ch2 = filter2.Band(); break;
+            case HIGHPASS: ch2 = filter2.High(); break;
+        }
+
+        // Delay
+        if (ch2_delay_mix > 0.0f) {
+            size_t delay_samples = static_cast<size_t>(ch2_delay_time * 48000.0f);
+            float delayed = del2.Read(delay_samples);
+            del2.Write(ch2 + (delayed * ch2_delay_feedback));
+            ch2 = ch2 * (1.0f - ch2_delay_mix) + delayed * ch2_delay_mix;
+        } else {
+            del2.Write(ch2);
+        }
+
+        // Chorus
+        if (ch2_chorus_depth > 0.0f) {
+            chorus2.SetLfoDepth(ch2_chorus_depth);
+            chorus2.SetLfoFreq(ch2_chorus_rate);
+            ch2 = chorus2.Process(ch2);
+        }
+
+        // ========== CROSS-CHANNEL BLEED ==========
+        if (cross_bleed > 0.0f) {
+            float temp_ch1 = ch1;
+            float temp_ch2 = ch2;
+            ch1 = ch1 * (1.0f - cross_bleed) + temp_ch2 * cross_bleed;
+            ch2 = ch2 * (1.0f - cross_bleed) + temp_ch1 * cross_bleed;
+        }
+
+        // ========== STEREO WIDTH ==========
+        // Mid-side processing for stereo width control
+        float mid = (ch1 + ch2) * 0.5f;
+        float side = (ch1 - ch2) * 0.5f * stereo_width;
+        ch1 = mid + side;
+        ch2 = mid - side;
+
+        // ========== MASTER REVERB ==========
+        float reverb_l, reverb_r;
+        reverb.Process(ch1, ch2, &reverb_l, &reverb_r);
+
+        ch1 = ch1 * (1.0f - reverb_mix) + reverb_l * reverb_mix;
+        ch2 = ch2 * (1.0f - reverb_mix) + reverb_r * reverb_mix;
+
+        // ========== MASTER OUTPUT ==========
+        ch1 = SoftClip(ch1 * master_gain);
+        ch2 = SoftClip(ch2 * master_gain);
+
+        out[0][i] = ch1;
+        out[1][i] = ch2;
     }
 }
 
 /**
- * Serial Command Parser
- * Reads commands from USB and updates global variables.
- * Format expected: "gain:0.5;\n"
+ * Parse and apply parameter changes from USB Serial
+ * Format: "param:value;\n"
+ *
+ * Examples:
+ *   ch1_gain:1.5;
+ *   ch1_drive:0.8;
+ *   ch1_filter_freq:2000.0;
+ *   cross_mod:0.5;
  */
 void ProcessSerial()
 {
-    // Check if data is available on USB Serial
     if(hw.usb_serial.Readable())
     {
-        // Read one character
         char c = hw.usb_serial.GetChar();
 
-        // Check for end of command (newline or semicolon)
         if(c == '\n' || c == ';')
         {
-            // Null-terminate the string so we can read it
             serial_buf[buf_pos] = '\0';
 
-            // Parse the command
-            float new_val;
-            // sscanf looks for the pattern "gain:%f" inside serial_buf
-            if(sscanf(serial_buf, "gain:%f", &new_val) == 1)
+            // Parse parameter name and value
+            char param_name[64];
+            float val;
+
+            if(sscanf(serial_buf, "%[^:]:%f", param_name, &val) == 2)
             {
-                // Clamp value between 0.0 and 2.0 for safety
-                if(new_val < 0.0f) new_val = 0.0f;
-                if(new_val > 2.0f) new_val = 2.0f;
-                
-                gain_level = new_val;
+                // Channel 1 parameters
+                if(strcmp(param_name, "ch1_gain") == 0)           ch1_gain = fclamp(val, 0.0f, 2.0f);
+                else if(strcmp(param_name, "ch1_drive") == 0)     ch1_drive = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "ch1_filter_freq") == 0) ch1_filter_freq = fclamp(val, 20.0f, 20000.0f);
+                else if(strcmp(param_name, "ch1_filter_res") == 0)  ch1_filter_res = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "ch1_delay_time") == 0)  ch1_delay_time = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "ch1_delay_fb") == 0)    ch1_delay_feedback = fclamp(val, 0.0f, 0.95f);
+                else if(strcmp(param_name, "ch1_delay_mix") == 0)   ch1_delay_mix = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "ch1_chorus_depth") == 0) ch1_chorus_depth = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "ch1_chorus_rate") == 0)  ch1_chorus_rate = fclamp(val, 0.01f, 10.0f);
+                else if(strcmp(param_name, "ch1_filter_mode") == 0) {
+                    int mode = (int)val;
+                    if(mode >= 0 && mode <= 2) ch1_filter_mode = (FilterMode)mode;
+                }
+
+                // Channel 2 parameters
+                else if(strcmp(param_name, "ch2_gain") == 0)           ch2_gain = fclamp(val, 0.0f, 2.0f);
+                else if(strcmp(param_name, "ch2_drive") == 0)          ch2_drive = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "ch2_filter_freq") == 0)    ch2_filter_freq = fclamp(val, 20.0f, 20000.0f);
+                else if(strcmp(param_name, "ch2_filter_res") == 0)     ch2_filter_res = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "ch2_delay_time") == 0)     ch2_delay_time = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "ch2_delay_fb") == 0)       ch2_delay_feedback = fclamp(val, 0.0f, 0.95f);
+                else if(strcmp(param_name, "ch2_delay_mix") == 0)      ch2_delay_mix = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "ch2_chorus_depth") == 0)   ch2_chorus_depth = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "ch2_chorus_rate") == 0)    ch2_chorus_rate = fclamp(val, 0.01f, 10.0f);
+                else if(strcmp(param_name, "ch2_filter_mode") == 0) {
+                    int mode = (int)val;
+                    if(mode >= 0 && mode <= 2) ch2_filter_mode = (FilterMode)mode;
+                }
+
+                // Cross-channel and master
+                else if(strcmp(param_name, "cross_mod") == 0)      cross_mod_amt = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "cross_bleed") == 0)    cross_bleed = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "stereo_width") == 0)   stereo_width = fclamp(val, 0.0f, 2.0f);
+                else if(strcmp(param_name, "reverb_mix") == 0)     reverb_mix = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "reverb_time") == 0)    reverb_time = fclamp(val, 0.0f, 1.0f);
+                else if(strcmp(param_name, "master_gain") == 0)    master_gain = fclamp(val, 0.0f, 2.0f);
+
+                // Update reverb parameters
+                reverb.SetFeedback(reverb_time);
+                reverb.SetLpFreq(18000.0f);
             }
 
-            // Reset buffer for next command
             buf_pos = 0;
         }
         else
         {
-            // Add character to buffer if there is space
-            if(buf_pos < 63)
+            if(buf_pos < 127)
             {
                 serial_buf[buf_pos++] = c;
             }
@@ -85,27 +300,43 @@ void ProcessSerial()
 
 int main(void)
 {
-    // 1. Initialize Daisy Seed Hardware
+    // 1. Initialize Hardware
     hw.Init();
 
     // 2. Configure Audio
-    hw.SetAudioBlockSize(4); // Low latency (4 samples per block)
+    hw.SetAudioBlockSize(4); // Low latency
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
 
-    // 3. Initialize USB Serial for WebGUI
+    // 3. Initialize USB Serial
     hw.usb_serial.Init();
 
-    // 4. Start Audio Callback
+    // 4. Initialize Effects
+    float sample_rate = hw.AudioSampleRate();
+
+    // Channel 1 effects
+    drive1.Init();
+    filter1.Init(sample_rate);
+    del1.Init();
+    chorus1.Init(sample_rate);
+
+    // Channel 2 effects
+    drive2.Init();
+    filter2.Init(sample_rate);
+    del2.Init();
+    chorus2.Init(sample_rate);
+
+    // Master effects
+    reverb.Init(sample_rate);
+    reverb.SetFeedback(0.85f);
+    reverb.SetLpFreq(18000.0f);
+
+    // 5. Start Audio
     hw.StartAudio(AudioCallback);
 
-    // 5. Main Loop (Non-Audio Tasks)
+    // 6. Main Loop
     while(1)
     {
-        // Handle USB Serial communication
         ProcessSerial();
-        
-        // Small delay to prevent locking up the CPU with empty loops
-        // (Audio happens in the background interrupt)
         System::Delay(1);
     }
 }

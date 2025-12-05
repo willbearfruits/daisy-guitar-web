@@ -3,36 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daisy Neuro-Link // FX Control</title>
+    <title>DP // Dual Processing Guitar FX</title>
     <style>
         :root {
             --bg: #050505;
             --panel: #111;
-            --accent: #00ff88;
+            --accent1: #00ff88;
+            --accent2: #ff0088;
             --text: #ccc;
             --grid: rgba(0, 255, 136, 0.1);
         }
+        * { box-sizing: border-box; }
         body {
             background-color: var(--bg);
             color: var(--text);
             font-family: 'Courier New', monospace;
             margin: 0;
             height: 100vh;
-            display: grid;
-            grid-template-rows: 60px 1fr 150px;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
         }
 
         /* HEADER */
         header {
             background: var(--panel);
-            border-bottom: 1px solid var(--accent);
+            border-bottom: 1px solid var(--accent1);
             display: flex;
             align-items: center;
             padding: 0 20px;
             justify-content: space-between;
+            min-height: 60px;
         }
-        h1 { font-size: 1.2rem; letter-spacing: 2px; color: var(--accent); margin: 0; }
+        h1 {
+            font-size: 1.5rem;
+            letter-spacing: 4px;
+            color: var(--accent1);
+            margin: 0;
+        }
         .status-led {
             width: 10px; height: 10px;
             background: #333;
@@ -41,169 +49,410 @@
             box-shadow: 0 0 5px #000;
             margin-right: 10px;
         }
-        .status-led.on { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
-        
+        .status-led.on {
+            background: var(--accent1);
+            box-shadow: 0 0 10px var(--accent1);
+        }
+
         button#connectBtn {
             background: transparent;
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            padding: 8px 16px;
+            border: 1px solid var(--accent1);
+            color: var(--accent1);
+            padding: 10px 20px;
             cursor: pointer;
             font-family: inherit;
             text-transform: uppercase;
+            font-size: 0.9rem;
+            transition: all 0.2s;
         }
-        button#connectBtn:hover { background: var(--accent); color: black; }
-
-        /* VISUALIZER */
-        #scope-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            background: 
-                linear-gradient(var(--grid) 1px, transparent 1px),
-                linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-            background-size: 40px 40px;
+        button#connectBtn:hover {
+            background: var(--accent1);
+            color: black;
         }
-        canvas { width: 100%; height: 100%; display: block; }
 
-        /* CONTROLS FOOTER */
-        footer {
-            background: var(--panel);
-            border-top: 1px solid #333;
+        /* MAIN CONTENT */
+        main {
+            flex: 1;
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
             padding: 20px;
+            overflow-y: auto;
+        }
+
+        .channel-panel {
+            background: var(--panel);
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
             gap: 20px;
         }
-        
-        .knob-group {
-            text-align: center;
-            position: relative;
+
+        .channel-panel.ch1 {
+            border-left: 3px solid var(--accent1);
         }
-        .knob-label {
-            font-size: 0.8rem;
+
+        .channel-panel.ch2 {
+            border-left: 3px solid var(--accent2);
+        }
+
+        .channel-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
             margin-bottom: 10px;
-            color: #888;
         }
+
+        .channel-panel.ch1 .channel-title {
+            color: var(--accent1);
+        }
+
+        .channel-panel.ch2 .channel-title {
+            color: var(--accent2);
+        }
+
+        .effect-section {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .effect-title {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .control-group {
+            display: grid;
+            grid-template-columns: 100px 1fr 60px;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+        }
+
+        .control-label {
+            font-size: 0.8rem;
+            color: #999;
+        }
+
         input[type=range] {
             -webkit-appearance: none;
             width: 100%;
             background: transparent;
+            cursor: pointer;
         }
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            height: 20px; width: 10px;
-            background: var(--accent);
+            height: 16px;
+            width: 8px;
+            background: var(--accent1);
             cursor: pointer;
-            margin-top: -8px;
+            margin-top: -6px;
         }
         input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 4px;
+            width: 100%;
+            height: 4px;
             background: #333;
+            border-radius: 2px;
         }
-        .val-display { font-size: 1.5rem; color: white; }
+
+        .ch2 input[type=range]::-webkit-slider-thumb {
+            background: var(--accent2);
+        }
+
+        .value-display {
+            font-size: 0.9rem;
+            color: white;
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+
+        select {
+            width: 100%;
+            background: #222;
+            color: var(--text);
+            border: 1px solid #333;
+            padding: 8px;
+            font-family: inherit;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* MASTER CONTROLS */
+        .master-controls {
+            grid-column: 1 / -1;
+            background: var(--panel);
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 20px;
+        }
+
+        .master-title {
+            font-size: 1.2rem;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .master-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+            .master-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
 
     </style>
 </head>
 <body>
 
 <header>
-    <div><span class="status-led" id="led"></span> DAISY // NEURO-LINK</div>
+    <div>
+        <span class="status-led" id="led"></span>
+        <h1>DP // DUAL PROCESSING</h1>
+    </div>
     <button id="connectBtn">INITIALIZE LINK</button>
 </header>
 
-<div id="scope-container">
-    <canvas id="visualizer"></canvas>
-</div>
+<main>
+    <!-- CHANNEL 1 -->
+    <div class="channel-panel ch1">
+        <div class="channel-title">⚡ Channel 1</div>
 
-<footer>
-    <div class="knob-group">
-        <div class="knob-label">INPUT GAIN</div>
-        <div class="val-display" id="val1">0.50</div>
-        <input type="range" min="0" max="100" value="50" id="slider1">
+        <div class="effect-section">
+            <div class="effect-title">Input</div>
+            <div class="control-group">
+                <label class="control-label">Gain</label>
+                <input type="range" min="0" max="200" value="100" data-param="ch1_gain" data-scale="0.01">
+                <span class="value-display">1.00</span>
+            </div>
+        </div>
+
+        <div class="effect-section">
+            <div class="effect-title">Overdrive</div>
+            <div class="control-group">
+                <label class="control-label">Drive</label>
+                <input type="range" min="0" max="100" value="0" data-param="ch1_drive" data-scale="0.01">
+                <span class="value-display">0.00</span>
+            </div>
+        </div>
+
+        <div class="effect-section">
+            <div class="effect-title">Filter</div>
+            <div class="control-group">
+                <label class="control-label">Mode</label>
+                <select data-param="ch1_filter_mode">
+                    <option value="0">Lowpass</option>
+                    <option value="1">Bandpass</option>
+                    <option value="2">Highpass</option>
+                </select>
+                <span class="value-display"></span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Cutoff</label>
+                <input type="range" min="20" max="20000" value="10000" data-param="ch1_filter_freq" data-scale="1">
+                <span class="value-display">10000</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Resonance</label>
+                <input type="range" min="0" max="100" value="10" data-param="ch1_filter_res" data-scale="0.01">
+                <span class="value-display">0.10</span>
+            </div>
+        </div>
+
+        <div class="effect-section">
+            <div class="effect-title">Delay</div>
+            <div class="control-group">
+                <label class="control-label">Time</label>
+                <input type="range" min="0" max="100" value="0" data-param="ch1_delay_time" data-scale="0.01">
+                <span class="value-display">0.00</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Feedback</label>
+                <input type="range" min="0" max="95" value="0" data-param="ch1_delay_fb" data-scale="0.01">
+                <span class="value-display">0.00</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Mix</label>
+                <input type="range" min="0" max="100" value="0" data-param="ch1_delay_mix" data-scale="0.01">
+                <span class="value-display">0.00</span>
+            </div>
+        </div>
+
+        <div class="effect-section">
+            <div class="effect-title">Chorus</div>
+            <div class="control-group">
+                <label class="control-label">Depth</label>
+                <input type="range" min="0" max="100" value="0" data-param="ch1_chorus_depth" data-scale="0.01">
+                <span class="value-display">0.00</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Rate</label>
+                <input type="range" min="1" max="1000" value="50" data-param="ch1_chorus_rate" data-scale="0.01">
+                <span class="value-display">0.50</span>
+            </div>
+        </div>
     </div>
-    <div class="knob-group">
-        <div class="knob-label">DRIVE</div>
-        <div class="val-display" id="val2">0.00</div>
-        <input type="range" min="0" max="100" value="0" id="slider2">
+
+    <!-- CHANNEL 2 -->
+    <div class="channel-panel ch2">
+        <div class="channel-title">⚡ Channel 2</div>
+
+        <div class="effect-section">
+            <div class="effect-title">Input</div>
+            <div class="control-group">
+                <label class="control-label">Gain</label>
+                <input type="range" min="0" max="200" value="100" data-param="ch2_gain" data-scale="0.01">
+                <span class="value-display">1.00</span>
+            </div>
+        </div>
+
+        <div class="effect-section">
+            <div class="effect-title">Overdrive</div>
+            <div class="control-group">
+                <label class="control-label">Drive</label>
+                <input type="range" min="0" max="100" value="0" data-param="ch2_drive" data-scale="0.01">
+                <span class="value-display">0.00</span>
+            </div>
+        </div>
+
+        <div class="effect-section">
+            <div class="effect-title">Filter</div>
+            <div class="control-group">
+                <label class="control-label">Mode</label>
+                <select data-param="ch2_filter_mode">
+                    <option value="0">Lowpass</option>
+                    <option value="1">Bandpass</option>
+                    <option value="2">Highpass</option>
+                </select>
+                <span class="value-display"></span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Cutoff</label>
+                <input type="range" min="20" max="20000" value="10000" data-param="ch2_filter_freq" data-scale="1">
+                <span class="value-display">10000</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Resonance</label>
+                <input type="range" min="0" max="100" value="10" data-param="ch2_filter_res" data-scale="0.01">
+                <span class="value-display">0.10</span>
+            </div>
+        </div>
+
+        <div class="effect-section">
+            <div class="effect-title">Delay</div>
+            <div class="control-group">
+                <label class="control-label">Time</label>
+                <input type="range" min="0" max="100" value="0" data-param="ch2_delay_time" data-scale="0.01">
+                <span class="value-display">0.00</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Feedback</label>
+                <input type="range" min="0" max="95" value="0" data-param="ch2_delay_fb" data-scale="0.01">
+                <span class="value-display">0.00</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Mix</label>
+                <input type="range" min="0" max="100" value="0" data-param="ch2_delay_mix" data-scale="0.01">
+                <span class="value-display">0.00</span>
+            </div>
+        </div>
+
+        <div class="effect-section">
+            <div class="effect-title">Chorus</div>
+            <div class="control-group">
+                <label class="control-label">Depth</label>
+                <input type="range" min="0" max="100" value="0" data-param="ch2_chorus_depth" data-scale="0.01">
+                <span class="value-display">0.00</span>
+            </div>
+            <div class="control-group">
+                <label class="control-label">Rate</label>
+                <input type="range" min="1" max="1000" value="50" data-param="ch2_chorus_rate" data-scale="0.01">
+                <span class="value-display">0.50</span>
+            </div>
+        </div>
     </div>
-    <div class="knob-group">
-        <div class="knob-label">CUTOFF</div>
-        <div class="val-display" id="val3">1.00</div>
-        <input type="range" min="0" max="100" value="100" id="slider3">
+
+    <!-- MASTER CONTROLS -->
+    <div class="master-controls">
+        <div class="master-title">◈ Cross-Channel & Master</div>
+        <div class="master-grid">
+            <div class="effect-section">
+                <div class="effect-title">Cross Modulation</div>
+                <div class="control-group">
+                    <label class="control-label">Amount</label>
+                    <input type="range" min="0" max="100" value="0" data-param="cross_mod" data-scale="0.01">
+                    <span class="value-display">0.00</span>
+                </div>
+            </div>
+
+            <div class="effect-section">
+                <div class="effect-title">Channel Bleed</div>
+                <div class="control-group">
+                    <label class="control-label">Mix</label>
+                    <input type="range" min="0" max="100" value="0" data-param="cross_bleed" data-scale="0.01">
+                    <span class="value-display">0.00</span>
+                </div>
+            </div>
+
+            <div class="effect-section">
+                <div class="effect-title">Stereo Width</div>
+                <div class="control-group">
+                    <label class="control-label">Width</label>
+                    <input type="range" min="0" max="200" value="100" data-param="stereo_width" data-scale="0.01">
+                    <span class="value-display">1.00</span>
+                </div>
+            </div>
+
+            <div class="effect-section">
+                <div class="effect-title">Reverb</div>
+                <div class="control-group">
+                    <label class="control-label">Time</label>
+                    <input type="range" min="0" max="100" value="50" data-param="reverb_time" data-scale="0.01">
+                    <span class="value-display">0.50</span>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">Mix</label>
+                    <input type="range" min="0" max="100" value="0" data-param="reverb_mix" data-scale="0.01">
+                    <span class="value-display">0.00</span>
+                </div>
+            </div>
+
+            <div class="effect-section">
+                <div class="effect-title">Master Output</div>
+                <div class="control-group">
+                    <label class="control-label">Gain</label>
+                    <input type="range" min="0" max="200" value="100" data-param="master_gain" data-scale="0.01">
+                    <span class="value-display">1.00</span>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="knob-group">
-        <div class="knob-label">RESONANCE</div>
-        <div class="val-display" id="val4">0.00</div>
-        <input type="range" min="0" max="100" value="0" id="slider4">
-    </div>
-</footer>
+</main>
 
 <script type="module">
     import { DaisyBridge } from './daisy-bridge.js';
     const daisy = new DaisyBridge();
 
-    // --- VISUALIZER SETUP ---
-    const canvas = document.getElementById('visualizer');
-    const ctx = canvas.getContext('2d');
-    let audioCtx, analyser, dataArray;
-
-    function resize() {
-        canvas.width = canvas.parentElement.clientWidth;
-        canvas.height = canvas.parentElement.clientHeight;
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    function initAudio() {
-        if (audioCtx) return;
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 2048;
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
-        
-        // In a real browser security model, we can't always just "listen" to system audio 
-        // without a stream. For this demo, we'll visualize a dummy oscillator 
-        // OR if the user allows mic input.
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => {
-                const source = audioCtx.createMediaStreamSource(stream);
-                source.connect(analyser);
-                draw();
-            })
-            .catch(err => console.log("Audio viz requires mic permission or loopback", err));
-    }
-
-    function draw() {
-        requestAnimationFrame(draw);
-        analyser.getByteTimeDomainData(dataArray);
-
-        ctx.fillStyle = '#050505';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#00ff88';
-        ctx.beginPath();
-
-        const sliceWidth = canvas.width * 1.0 / analyser.frequencyBinCount;
-        let x = 0;
-
-        for(let i = 0; i < analyser.frequencyBinCount; i++) {
-            const v = dataArray[i] / 128.0;
-            const y = v * canvas.height / 2;
-
-            if(i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-
-            x += sliceWidth;
-        }
-
-        ctx.lineTo(canvas.width, canvas.height / 2);
-        ctx.stroke();
-    }
-
-    // --- DAISY CONNECTION ---
+    // --- CONNECTION ---
     document.getElementById('connectBtn').addEventListener('click', async () => {
-        initAudio(); // Start audio engine on click
         const success = await daisy.connect();
         if (success) {
             document.getElementById('connectBtn').innerText = "LINK ESTABLISHED";
@@ -211,28 +460,50 @@
         }
     });
 
-    // --- CONTROLS ---
-    const params = ['gain', 'drive', 'cutoff', 'res'];
-    
-    [1, 2, 3, 4].forEach((id, index) => {
-        const slider = document.getElementById(`slider${id}`);
-        const disp = document.getElementById(`val${id}`);
-        
-        slider.addEventListener('input', (e) => {
-            const val = (e.target.value / 100.0).toFixed(2);
-            disp.innerText = val;
-            
-            // Send: "gain:0.5;" or "drive:0.8;"
-            if(daisy.isConnected) {
-                // We use the bridge's direct writer if we want custom commands,
-                // or we extend the bridge. For now, let's assume setGain is generic enough
-                // or we manually send via private writer if we could.
-                // Let's use a raw write hack since we didn't update the bridge class yet:
-                if(daisy.writer) {
-                    daisy.writer.write(`${params[index]}:${val};\n`);
+    // --- CONTROL BINDING ---
+    const allControls = document.querySelectorAll('input[data-param], select[data-param]');
+
+    allControls.forEach(control => {
+        const param = control.dataset.param;
+        const scale = parseFloat(control.dataset.scale) || 1;
+        const valueDisplay = control.parentElement.querySelector('.value-display');
+
+        const updateValue = () => {
+            let value;
+
+            if (control.tagName === 'SELECT') {
+                value = parseFloat(control.value);
+                if (valueDisplay) {
+                    const selectedOption = control.options[control.selectedIndex].text;
+                    valueDisplay.textContent = selectedOption;
+                }
+            } else {
+                value = parseFloat(control.value) * scale;
+                if (valueDisplay) {
+                    // Format display value
+                    if (param.includes('filter_freq')) {
+                        valueDisplay.textContent = Math.round(value);
+                    } else {
+                        valueDisplay.textContent = value.toFixed(2);
+                    }
                 }
             }
-        });
+
+            // Send to Daisy
+            if (daisy.isConnected && daisy.writer) {
+                daisy.sendParam(param, value);
+            }
+        };
+
+        control.addEventListener('input', updateValue);
+        control.addEventListener('change', updateValue);
+
+        // Initialize display
+        if (control.tagName === 'SELECT') {
+            if (valueDisplay) {
+                valueDisplay.textContent = control.options[control.selectedIndex].text;
+            }
+        }
     });
 
 </script>
