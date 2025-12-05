@@ -74,6 +74,7 @@ FilterMode ch2_filter_mode = LOWPASS;
 // Serial buffer
 char serial_buf[128];
 int buf_pos = 0;
+volatile bool new_data_ready = false;
 
 /**
  * Soft clipping function for musical saturation
@@ -235,6 +236,36 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 }
 
 /**
+ * USB Receive Callback - Called when data arrives via USB Serial
+ */
+void UsbCallback(uint8_t* buf, uint32_t* len)
+{
+    for(uint32_t i = 0; i < *len; i++)
+    {
+        char c = buf[i];
+
+        if(c == '\n' || c == ';')
+        {
+            serial_buf[buf_pos] = '\0';
+            new_data_ready = true;
+            buf_pos = 0;
+        }
+        else
+        {
+            if(buf_pos < 127)
+            {
+                serial_buf[buf_pos++] = c;
+            }
+            else
+            {
+                // Buffer overflow protection - reset on overflow
+                buf_pos = 0;
+            }
+        }
+    }
+}
+
+/**
  * Parse and apply parameter changes from USB Serial
  * Format: "param:value;\n"
  *
@@ -246,30 +277,17 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
  */
 void ProcessSerial()
 {
-    // Serial communication disabled for compatibility
-    // Web interface will work once proper USB CDC is configured
-    return;
-
-    // TODO: Implement with proper libDaisy USB API
-    /*
-    if(hw.usb_handle.TransmitReady())
+    if(new_data_ready)
     {
-        uint8_t buffer[1];
-        int32_t bytes_read = hw.usb_handle.ReceiveData(buffer, 1);
-        if(bytes_read <= 0) return;
-        char c = buffer[0];
+        new_data_ready = false;
 
-        if(c == '\n' || c == ';')
+        // Parse parameter name and value
+        char param_name[64];
+        float val;
+
+        // Add width specifier to prevent buffer overflow
+        if(sscanf(serial_buf, "%63[^:]:%f", param_name, &val) == 2)
         {
-            serial_buf[buf_pos] = '\0';
-
-            // Parse parameter name and value
-            char param_name[64];
-            float val;
-
-            // FIX: Add width specifier to prevent buffer overflow
-            if(sscanf(serial_buf, "%63[^:]:%f", param_name, &val) == 2)
-            {
                 // Channel 1 parameters
                 if(strcmp(param_name, "ch1_gain") == 0)           ch1_gain = fclamp(val, 0.0f, 2.0f);
                 else if(strcmp(param_name, "ch1_drive") == 0)     ch1_drive = fclamp(val, 0.0f, 1.0f);
@@ -311,24 +329,8 @@ void ProcessSerial()
                 // Reverb parameters (disabled for now)
                 // reverb.SetFeedback(reverb_time);
                 // reverb.SetLpFreq(REVERB_LP_FREQ);
-            }
-
-            buf_pos = 0;
-        }
-        else
-        {
-            if(buf_pos < 127)
-            {
-                serial_buf[buf_pos++] = c;
-            }
-            else
-            {
-                // FIX: Buffer overflow protection - reset on overflow
-                buf_pos = 0;
-            }
         }
     }
-    */
 }
 
 int main(void)
@@ -340,8 +342,10 @@ int main(void)
     hw.SetAudioBlockSize(AUDIO_BLOCK_SIZE); // Low latency
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
 
-    // 3. Initialize USB (disabled for compilation compatibility)
-    // hw.usb_handle.Init(UsbHandle::FS_INTERNAL);
+    // 3. Initialize USB Serial
+    hw.usb_handle.Init(UsbHandle::FS_INTERNAL);
+    System::Delay(100); // Allow USB to enumerate
+    hw.usb_handle.SetReceiveCallback(UsbCallback, UsbHandle::FS_INTERNAL);
 
     // 4. Initialize Effects
     float sample_rate = hw.AudioSampleRate();

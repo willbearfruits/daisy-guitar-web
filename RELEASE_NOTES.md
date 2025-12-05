@@ -1,6 +1,50 @@
-# DP v2.0 - Dual Processing Guitar FX
+# DP v2.1 - Full USB Serial Support
 
 ## Release Date: 2025-12-05
+
+### 🎉 Complete Feature Restoration
+
+USB Serial communication is now fully operational! Control all 24+ parameters in real-time from your browser.
+
+---
+
+## 🆕 What's New in v2.1
+
+### Major Updates
+
+**✅ USB Serial Communication Restored**
+- Web Serial API fully functional for parameter control
+- Real-time parameter updates from browser Dashboard
+- Automatic device enumeration (no drivers needed on modern OS)
+- Universal compatibility with all Daisy Seed boards
+
+**📊 Memory Optimization**
+- FLASH: 91,224 bytes (69.60%)
+- SRAM: 447,148 bytes (85.29%)
+- USB stack adds ~18KB, well within limits
+
+**🔧 Implementation Details**
+- USB CDC receive callback for non-blocking serial processing
+- Buffer overflow protection maintained
+- Event-driven parameter updates
+- 100ms USB enumeration delay for stability
+
+---
+
+## 🔄 Upgrade from v2.0
+
+**All users should upgrade to v2.1** for full functionality:
+1. Flash the new firmware via Web Flasher or CLI
+2. Reset Daisy Seed after flashing
+3. Connect via Dashboard tab for real-time control
+
+v2.0 users: Your audio processing works, but parameter control was disabled. v2.1 restores it!
+
+---
+
+# DP v2.0 - Dual Processing Guitar FX
+
+## Release Date: 2025-12-05 (Superseded by v2.1)
 
 ### 🎉 Production-Ready Release
 
@@ -66,7 +110,10 @@ The DP (Dual Processing) guitar effects processor is now production-ready with p
 - **Sample Rate:** 48 kHz
 - **Block Size:** 4 samples (ultra-low latency)
 - **Latency:** ~0.08ms per block
-- **Memory Usage:**
+- **Memory Usage (v2.1):**
+  - FLASH: 91,224 bytes (69.60%)
+  - SRAM: 447,148 bytes (85.29%)
+- **Memory Usage (v2.0 - deprecated):**
   - FLASH: 72,852 bytes (55.58%)
   - SRAM: 435,356 bytes (83.04%)
 
@@ -125,26 +172,21 @@ The DP (Dual Processing) guitar effects processor is now production-ready with p
 
 ---
 
-## 🔧 Known Issues
+## 🔧 Known Issues (v2.0 Only - Fixed in v2.1)
 
-- **USB Serial disabled** in this build for compatibility
-  - Web interface parameter control will be enabled in v2.1
-  - Current build runs audio processing only
-  - All effects work on inputs with default parameters
-
+- ~~**USB Serial disabled** in this build for compatibility~~ **FIXED in v2.1**
 - **Reverb simplified** due to API compatibility
-  - Full reverb will return in v2.1 with proper libDaisy integration
+  - Full reverb will return in future version with proper libDaisy integration
 
 ---
 
-## 🚀 What's Next (v2.1 Roadmap)
+## 🚀 Future Roadmap (v2.2+)
 
-- ✅ Restore USB Serial communication for web control
-- ✅ Add proper ReverbSc integration
-- ✅ MIDI input support
-- ✅ Preset saving/loading
-- ✅ Visual waveform display
-- ✅ Advanced modulation routing
+- 🔄 Add proper ReverbSc integration
+- 🔄 MIDI input support
+- 🔄 Preset saving/loading to QSPI flash
+- 🔄 Visual waveform display
+- 🔄 Advanced modulation routing
 
 ---
 

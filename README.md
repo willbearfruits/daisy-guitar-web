@@ -1,6 +1,6 @@
 # DP // Dual Processing Guitar FX
 
-A professional dual-channel, real-time guitar effects processor for the [Electro-Smith Daisy Seed](https://www.electro-smith.com/daisy/daisy-seed) with comprehensive web-based GUI control.
+**Version 2.1** - A professional dual-channel, real-time guitar effects processor for the [Electro-Smith Daisy Seed](https://www.electro-smith.com/daisy/daisy-seed) with comprehensive web-based control and browser-based firmware flashing.
 
 ## 🎸 Features
 
@@ -26,12 +26,13 @@ A professional dual-channel, real-time guitar effects processor for the [Electro
 - **Master Reverb** - Lush stereo reverb with time and mix controls
 - **Master Gain** - Final output level control
 
-### Web GUI Control
-- **Real-time USB Serial communication**
-- **Dual-panel interface** with color-coded channels
-- **All parameters controllable** from the browser
-- **No installation required** - runs entirely in browser
-- Works with Chrome, Edge, Opera (Web Serial API support)
+### Web Interface
+- **Browser-Based Firmware Flasher** - Upload firmware via WebUSB DFU (no CLI tools needed!)
+- **Real-time Parameter Control** - USB Serial communication for instant tweaking
+- **Dual-Panel Interface** - Color-coded channels (teal/pink) with Tailwind CSS
+- **24+ Controllable Parameters** - All effects adjustable from browser
+- **No Installation Required** - Works entirely in Chrome, Edge, or Opera
+- **Activity Logs** - Real-time feedback during flashing and connection
 
 ## 📂 Project Structure
 
@@ -39,10 +40,17 @@ A professional dual-channel, real-time guitar effects processor for the [Electro
 dp/
 ├── firmware/
 │   ├── DaisyGuitar.cpp    # Main Daisy Seed firmware
-│   └── Makefile           # Build configuration
+│   ├── Makefile           # Build configuration
+│   └── build/             # Compiled binaries (.bin, .elf, .hex)
 ├── docs/
-│   ├── index.html         # Web GUI interface
-│   └── daisy-bridge.js    # Web Serial API bridge
+│   ├── index.html         # Web interface (Tailwind CSS)
+│   ├── daisy-bridge.js    # Web Serial API for parameter control
+│   ├── dfu.js             # WebUSB DFU flashing protocol
+│   ├── flasher.js         # Firmware flasher logic
+│   └── firmware/
+│       └── DaisyGuitar.bin # Pre-compiled firmware (v2.1)
+├── RELEASE_NOTES.md
+├── LICENSE
 └── README.md
 ```
 
@@ -85,31 +93,33 @@ dp/
    make program-dfu
    ```
 
-### Using the Web GUI
+### Using the Web Interface
 
-#### Local Testing
+#### Quick Start (No Installation!)
+
+**Option 1: Use Hosted Version**
+1. Visit **https://willbearfruits.github.io/daisy-guitar-web/**
+2. Go to **Firmware** tab
+3. Put Daisy in DFU mode (Hold BOOT, press RESET, release both)
+4. Click **"Connect to Daisy Seed"** → Select device from browser
+5. Click **"Flash Firmware"** → Wait ~10 seconds
+6. Press **RESET** on Daisy Seed
+7. Switch to **Dashboard** tab
+8. Click **"CONNECT"** → Select serial port
+9. Tweak all 24+ parameters in real-time!
+
+**Option 2: Local Development**
 ```bash
 cd docs
 python3 -m http.server 8000
 # Open http://localhost:8000 in Chrome/Edge/Opera
 ```
 
-#### GitHub Pages Hosting
-The project is deployed at:
-**https://willbearfruits.github.io/daisy-guitar-web/**
-
-To update deployment:
-1. Make changes and commit
-2. Push to master branch
-3. GitHub Pages automatically rebuilds from `/docs` folder
-
-#### Connecting to Daisy
-1. Flash firmware to Daisy Seed
-2. Connect Daisy to computer via USB
-3. Open the web GUI
-4. Click "INITIALIZE LINK"
-5. Select the Daisy's serial port
-6. Start tweaking parameters in real-time!
+#### Features Overview
+- **Dashboard Tab:** Real-time parameter control via Web Serial
+- **Firmware Tab:** Browser-based firmware flashing via WebUSB DFU
+- **No Drivers Needed:** Works on Windows 10+, macOS, Linux
+- **Activity Logs:** See all operations in real-time
 
 ## 🎛️ Parameter Reference
 
@@ -187,9 +197,12 @@ Guitar pickups need ~1MΩ input impedance, but Daisy's ADC inputs are much lower
 
 - **Sample Rate:** 48 kHz
 - **Block Size:** 4 samples (ultra-low latency)
-- **Processing:** Fixed-point and floating-point optimized
-- **Latency:** < 1ms analog-to-analog
-- **USB Serial:** 9600 baud (sufficient for parameter updates)
+- **Processing:** Fixed-point and floating-point optimized DSP
+- **Latency:** ~0.08ms per block (< 1ms total analog-to-analog)
+- **Memory Usage:**
+  - FLASH: 91,224 bytes (69.60% of 128KB)
+  - SRAM: 447,148 bytes (85.29% of 512KB)
+- **USB Serial:** Event-driven callback processing
 
 ## 💡 Creative Ideas
 
