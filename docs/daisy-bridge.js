@@ -24,7 +24,7 @@ export class DaisyBridge {
         // Statistics
         this.stats = {
             messagesSent: 0,
-            messagesF ailed: 0,
+            messagesFailed: 0,
             lastError: null
         };
     }
