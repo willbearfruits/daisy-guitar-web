@@ -1,539 +1,419 @@
 <!DOCTYPE html>
 <!--
     DP // Dual Processing Guitar FX
-
-    Web-based control interface for Daisy Seed dual-channel guitar processor
+    Production-Ready Web Interface with Firmware Flasher
     Repository: https://github.com/willbearfruits/daisy-guitar-web
-
-    Features:
-    - 2 independent guitar channels with full effect chains
-    - Real-time USB Serial parameter control
-    - Cross-channel modulation and routing
-    - Professional effects: overdrive, filter, delay, chorus, reverb
 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="DP Dual Processing - Professional dual-channel guitar effects processor for Daisy Seed with web-based real-time control">
-    <meta name="keywords" content="Daisy Seed, guitar effects, dual processing, Web Serial API, audio processing, embedded audio">
-    <meta name="author" content="willbearfruits">
-    <title>DP // Dual Processing Guitar FX</title>
+    <meta name="description" content="DP Dual Processing - Professional dual-channel guitar effects processor for Daisy Seed">
+    <meta name="keywords" content="Daisy Seed, guitar effects, dual processing, Web Serial API, audio processing">
+    <title>DP // Dual Processing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root {
-            --bg: #050505;
-            --panel: #111;
-            --accent1: #00ff88;
-            --accent2: #ff0088;
-            --text: #ccc;
-            --grid: rgba(0, 255, 136, 0.1);
-        }
-        * { box-sizing: border-box; }
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: 'Courier New', monospace;
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
 
-        /* HEADER */
-        header {
-            background: var(--panel);
-            border-bottom: 1px solid var(--accent1);
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            justify-content: space-between;
-            min-height: 60px;
+        /* Animations */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(45, 212, 191, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(45, 212, 191, 0.6); }
         }
-        h1 {
-            font-size: 1.5rem;
-            letter-spacing: 4px;
-            color: var(--accent1);
-            margin: 0;
+        .status-pulse { animation: pulse-glow 2s ease-in-out infinite; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .status-led {
-            width: 10px; height: 10px;
-            background: #333;
+        .slide-in { animation: slideIn 0.3s ease-out; }
+
+        /* Custom range slider */
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #14b8a6;
             border-radius: 50%;
-            display: inline-block;
-            box-shadow: 0 0 5px #000;
-            margin-right: 10px;
-        }
-        .status-led.on {
-            background: var(--accent1);
-            box-shadow: 0 0 10px var(--accent1);
-        }
-
-        button#connectBtn {
-            background: transparent;
-            border: 1px solid var(--accent1);
-            color: var(--accent1);
-            padding: 10px 20px;
             cursor: pointer;
-            font-family: inherit;
-            text-transform: uppercase;
-            font-size: 0.9rem;
             transition: all 0.2s;
         }
-        button#connectBtn:hover {
-            background: var(--accent1);
-            color: black;
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #0d9488;
         }
-
-        /* MAIN CONTENT */
-        main {
-            flex: 1;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .channel-panel {
-            background: var(--panel);
-            border: 1px solid #333;
-            border-radius: 4px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .channel-panel.ch1 {
-            border-left: 3px solid var(--accent1);
-        }
-
-        .channel-panel.ch2 {
-            border-left: 3px solid var(--accent2);
-        }
-
-        .channel-title {
-            font-size: 1.2rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 10px;
-        }
-
-        .channel-panel.ch1 .channel-title {
-            color: var(--accent1);
-        }
-
-        .channel-panel.ch2 .channel-title {
-            color: var(--accent2);
-        }
-
-        .effect-section {
-            background: rgba(255, 255, 255, 0.02);
-            padding: 15px;
-            border-radius: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .effect-title {
-            font-size: 0.8rem;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .control-group {
-            display: grid;
-            grid-template-columns: 100px 1fr 60px;
-            align-items: center;
-            gap: 10px;
-            margin: 8px 0;
-        }
-
-        .control-label {
-            font-size: 0.8rem;
-            color: #999;
-        }
-
         input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
-            cursor: pointer;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 8px;
-            background: var(--accent1);
-            cursor: pointer;
-            margin-top: -6px;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            background: #333;
-            border-radius: 2px;
+            appearance: none;
+            background: #374151;
+            height: 6px;
+            border-radius: 3px;
         }
 
-        .ch2 input[type=range]::-webkit-slider-thumb {
-            background: var(--accent2);
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 16px 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
         }
-
-        .value-display {
-            font-size: 0.9rem;
-            color: white;
-            text-align: right;
-            font-family: 'Courier New', monospace;
-        }
-
-        select {
-            width: 100%;
-            background: #222;
-            color: var(--text);
-            border: 1px solid #333;
-            padding: 8px;
-            font-family: inherit;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        /* MASTER CONTROLS */
-        .master-controls {
-            grid-column: 1 / -1;
-            background: var(--panel);
-            border: 1px solid #333;
-            border-radius: 4px;
-            padding: 20px;
-        }
-
-        .master-title {
-            font-size: 1.2rem;
-            color: #fff;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-
-        .master-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 20px;
-        }
-
-        @media (max-width: 1200px) {
-            main {
-                grid-template-columns: 1fr;
-            }
-            .master-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
+        .toast.success { border-left: 4px solid #14b8a6; }
+        .toast.error { border-left: 4px solid #ef4444; }
+        .toast.warning { border-left: 4px solid #f59e0b; }
     </style>
 </head>
-<body>
+<body class="bg-gray-900 text-white font-sans overflow-hidden">
 
-<header>
-    <div>
-        <span class="status-led" id="led"></span>
-        <h1>DP // DUAL PROCESSING</h1>
-    </div>
-    <button id="connectBtn">INITIALIZE LINK</button>
-</header>
+    <!-- Toast Container -->
+    <div id="toastContainer"></div>
 
-<main>
-    <!-- CHANNEL 1 -->
-    <div class="channel-panel ch1">
-        <div class="channel-title">⚡ Channel 1</div>
+    <div class="flex h-screen">
 
-        <div class="effect-section">
-            <div class="effect-title">Input</div>
-            <div class="control-group">
-                <label class="control-label">Gain</label>
-                <input type="range" min="0" max="200" value="100" data-param="ch1_gain" data-scale="0.01">
-                <span class="value-display">1.00</span>
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gray-900 border-r border-gray-800 flex flex-col p-4">
+            <div class="flex items-center gap-3 px-2 mb-8 mt-2">
+                <div class="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg flex items-center justify-center shadow-lg shadow-teal-500/20">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="font-bold text-xl tracking-tight">DP</div>
+                    <div class="text-xs text-gray-500">Dual Processing</div>
+                </div>
             </div>
-        </div>
 
-        <div class="effect-section">
-            <div class="effect-title">Overdrive</div>
-            <div class="control-group">
-                <label class="control-label">Drive</label>
-                <input type="range" min="0" max="100" value="0" data-param="ch1_drive" data-scale="0.01">
-                <span class="value-display">0.00</span>
-            </div>
-        </div>
+            <nav class="space-y-1 flex-1">
+                <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 bg-gray-800 text-teal-400 font-medium">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                    </svg>
+                    Dashboard
+                </button>
+                <button onclick="switchView('firmware')" id="nav-firmware" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-gray-400 hover:bg-gray-800 hover:text-gray-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    Firmware
+                </button>
+            </nav>
 
-        <div class="effect-section">
-            <div class="effect-title">Filter</div>
-            <div class="control-group">
-                <label class="control-label">Mode</label>
-                <select data-param="ch1_filter_mode">
-                    <option value="0">Lowpass</option>
-                    <option value="1">Bandpass</option>
-                    <option value="2">Highpass</option>
-                </select>
-                <span class="value-display"></span>
+            <!-- Connection Status -->
+            <div class="border-t border-gray-800 pt-4 mt-4">
+                <div id="connectionStatus" class="flex items-center gap-2 px-2 py-2 rounded-lg bg-gray-800/50">
+                    <div id="statusDot" class="w-2 h-2 rounded-full bg-gray-600"></div>
+                    <span id="statusText" class="text-xs text-gray-500">Disconnected</span>
+                </div>
+                <button id="connectBtn" onclick="handleConnect()" class="w-full mt-2 bg-teal-500 hover:bg-teal-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                    CONNECT
+                </button>
             </div>
-            <div class="control-group">
-                <label class="control-label">Cutoff</label>
-                <input type="range" min="20" max="20000" value="10000" data-param="ch1_filter_freq" data-scale="1">
-                <span class="value-display">10000</span>
-            </div>
-            <div class="control-group">
-                <label class="control-label">Resonance</label>
-                <input type="range" min="0" max="100" value="10" data-param="ch1_filter_res" data-scale="0.01">
-                <span class="value-display">0.10</span>
-            </div>
-        </div>
 
-        <div class="effect-section">
-            <div class="effect-title">Delay</div>
-            <div class="control-group">
-                <label class="control-label">Time</label>
-                <input type="range" min="0" max="100" value="0" data-param="ch1_delay_time" data-scale="0.01">
-                <span class="value-display">0.00</span>
+            <div class="text-xs text-gray-600 px-2 mt-4">
+                v2.0.0 Production
             </div>
-            <div class="control-group">
-                <label class="control-label">Feedback</label>
-                <input type="range" min="0" max="95" value="0" data-param="ch1_delay_fb" data-scale="0.01">
-                <span class="value-display">0.00</span>
-            </div>
-            <div class="control-group">
-                <label class="control-label">Mix</label>
-                <input type="range" min="0" max="100" value="0" data-param="ch1_delay_mix" data-scale="0.01">
-                <span class="value-display">0.00</span>
-            </div>
-        </div>
+        </aside>
 
-        <div class="effect-section">
-            <div class="effect-title">Chorus</div>
-            <div class="control-group">
-                <label class="control-label">Depth</label>
-                <input type="range" min="0" max="100" value="0" data-param="ch1_chorus_depth" data-scale="0.01">
-                <span class="value-display">0.00</span>
-            </div>
-            <div class="control-group">
-                <label class="control-label">Rate</label>
-                <input type="range" min="1" max="1000" value="50" data-param="ch1_chorus_rate" data-scale="0.01">
-                <span class="value-display">0.50</span>
-            </div>
-        </div>
-    </div>
+        <!-- Main Content -->
+        <main class="flex-1 overflow-hidden flex flex-col">
+            <!-- Header -->
+            <header class="h-16 border-b border-gray-800 bg-gray-900 flex items-center justify-between px-8">
+                <h1 id="pageTitle" class="text-2xl font-bold text-white tracking-tight">Dashboard</h1>
+                <div class="flex items-center gap-4">
+                    <a href="https://github.com/willbearfruits/daisy-guitar-web" target="_blank" class="text-gray-400 hover:text-white transition-colors">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                    </a>
+                </div>
+            </header>
 
-    <!-- CHANNEL 2 -->
-    <div class="channel-panel ch2">
-        <div class="channel-title">⚡ Channel 2</div>
+            <!-- Content Body -->
+            <div class="flex-1 overflow-y-auto p-8">
+                <!-- Dashboard View -->
+                <div id="dashboardView" class="max-w-7xl mx-auto">
+                    <!-- Dual Channel Layout -->
+                    <div class="grid grid-cols-2 gap-6 mb-6">
+                        <!-- Channel 1 -->
+                        <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 border-l-4 border-l-teal-500">
+                            <h2 class="text-xl font-bold text-teal-400 mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                Channel 1
+                            </h2>
+                            <div id="ch1-controls" class="space-y-4"></div>
+                        </div>
 
-        <div class="effect-section">
-            <div class="effect-title">Input</div>
-            <div class="control-group">
-                <label class="control-label">Gain</label>
-                <input type="range" min="0" max="200" value="100" data-param="ch2_gain" data-scale="0.01">
-                <span class="value-display">1.00</span>
-            </div>
-        </div>
+                        <!-- Channel 2 -->
+                        <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 border-l-4 border-l-pink-500">
+                            <h2 class="text-xl font-bold text-pink-400 mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                Channel 2
+                            </h2>
+                            <div id="ch2-controls" class="space-y-4"></div>
+                        </div>
+                    </div>
 
-        <div class="effect-section">
-            <div class="effect-title">Overdrive</div>
-            <div class="control-group">
-                <label class="control-label">Drive</label>
-                <input type="range" min="0" max="100" value="0" data-param="ch2_drive" data-scale="0.01">
-                <span class="value-display">0.00</span>
-            </div>
-        </div>
+                    <!-- Master Controls -->
+                    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                        <h2 class="text-xl font-bold text-white mb-4">Master & Cross-Channel</h2>
+                        <div id="master-controls" class="grid grid-cols-3 gap-6"></div>
+                    </div>
+                </div>
 
-        <div class="effect-section">
-            <div class="effect-title">Filter</div>
-            <div class="control-group">
-                <label class="control-label">Mode</label>
-                <select data-param="ch2_filter_mode">
-                    <option value="0">Lowpass</option>
-                    <option value="1">Bandpass</option>
-                    <option value="2">Highpass</option>
-                </select>
-                <span class="value-display"></span>
-            </div>
-            <div class="control-group">
-                <label class="control-label">Cutoff</label>
-                <input type="range" min="20" max="20000" value="10000" data-param="ch2_filter_freq" data-scale="1">
-                <span class="value-display">10000</span>
-            </div>
-            <div class="control-group">
-                <label class="control-label">Resonance</label>
-                <input type="range" min="0" max="100" value="10" data-param="ch2_filter_res" data-scale="0.01">
-                <span class="value-display">0.10</span>
-            </div>
-        </div>
+                <!-- Firmware View -->
+                <div id="firmwareView" class="hidden max-w-4xl mx-auto">
+                    <div class="bg-gray-800 rounded-xl p-8 border border-gray-700">
+                        <h2 class="text-2xl font-bold text-white mb-6">Firmware Management</h2>
 
-        <div class="effect-section">
-            <div class="effect-title">Delay</div>
-            <div class="control-group">
-                <label class="control-label">Time</label>
-                <input type="range" min="0" max="100" value="0" data-param="ch2_delay_time" data-scale="0.01">
-                <span class="value-display">0.00</span>
-            </div>
-            <div class="control-group">
-                <label class="control-label">Feedback</label>
-                <input type="range" min="0" max="95" value="0" data-param="ch2_delay_fb" data-scale="0.01">
-                <span class="value-display">0.00</span>
-            </div>
-            <div class="control-group">
-                <label class="control-label">Mix</label>
-                <input type="range" min="0" max="100" value="0" data-param="ch2_delay_mix" data-scale="0.01">
-                <span class="value-display">0.00</span>
-            </div>
-        </div>
+                        <!-- Flash Instructions -->
+                        <div class="mb-8 bg-gray-900/50 rounded-lg p-6 border border-gray-700">
+                            <h3 class="text-lg font-semibold text-teal-400 mb-3">📝 Flashing Instructions</h3>
+                            <ol class="space-y-3 text-gray-300">
+                                <li class="flex gap-3">
+                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-teal-500 text-white text-sm flex items-center justify-center font-bold">1</span>
+                                    <span>Build the firmware: <code class="bg-gray-800 px-2 py-1 rounded text-teal-400">cd firmware && make</code></span>
+                                </li>
+                                <li class="flex gap-3">
+                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-teal-500 text-white text-sm flex items-center justify-center font-bold">2</span>
+                                    <span>Put Daisy in DFU mode: Hold <kbd class="px-2 py-1 bg-gray-700 rounded">BOOT</kbd> button, press <kbd class="px-2 py-1 bg-gray-700 rounded">RESET</kbd>, release both</span>
+                                </li>
+                                <li class="flex gap-3">
+                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-teal-500 text-white text-sm flex items-center justify-center font-bold">3</span>
+                                    <span>Flash: <code class="bg-gray-800 px-2 py-1 rounded text-teal-400">make program-dfu</code></span>
+                                </li>
+                                <li class="flex gap-3">
+                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-teal-500 text-white text-sm flex items-center justify-center font-bold">4</span>
+                                    <span>Reset Daisy and connect via Dashboard tab</span>
+                                </li>
+                            </ol>
+                        </div>
 
-        <div class="effect-section">
-            <div class="effect-title">Chorus</div>
-            <div class="control-group">
-                <label class="control-label">Depth</label>
-                <input type="range" min="0" max="100" value="0" data-param="ch2_chorus_depth" data-scale="0.01">
-                <span class="value-display">0.00</span>
+                        <!-- Build Commands -->
+                        <div class="bg-gray-900/50 rounded-lg p-6 border border-gray-700">
+                            <h3 class="text-lg font-semibold text-teal-400 mb-3">⚙️ Build Commands</h3>
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between bg-gray-800 p-3 rounded">
+                                    <code class="text-gray-300">make clean</code>
+                                    <span class="text-xs text-gray-500">Clean build artifacts</span>
+                                </div>
+                                <div class="flex items-center justify-between bg-gray-800 p-3 rounded">
+                                    <code class="text-gray-300">make</code>
+                                    <span class="text-xs text-gray-500">Build firmware</span>
+                                </div>
+                                <div class="flex items-center justify-between bg-gray-800 p-3 rounded">
+                                    <code class="text-gray-300">make program-dfu</code>
+                                    <span class="text-xs text-gray-500">Flash via DFU</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Requirements -->
+                        <div class="mt-6 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                            <h4 class="text-yellow-400 font-semibold mb-2">⚠️ Requirements</h4>
+                            <ul class="text-sm text-gray-300 space-y-1">
+                                <li>• ARM GCC Toolchain installed</li>
+                                <li>• libDaisy and DaisySP libraries at <code class="bg-gray-800 px-1 rounded">~/DaisyExamples/</code></li>
+                                <li>• dfu-util installed for flashing</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="control-group">
-                <label class="control-label">Rate</label>
-                <input type="range" min="1" max="1000" value="50" data-param="ch2_chorus_rate" data-scale="0.01">
-                <span class="value-display">0.50</span>
-            </div>
-        </div>
+        </main>
     </div>
 
-    <!-- MASTER CONTROLS -->
-    <div class="master-controls">
-        <div class="master-title">◈ Cross-Channel & Master</div>
-        <div class="master-grid">
-            <div class="effect-section">
-                <div class="effect-title">Cross Modulation</div>
-                <div class="control-group">
-                    <label class="control-label">Amount</label>
-                    <input type="range" min="0" max="100" value="0" data-param="cross_mod" data-scale="0.01">
-                    <span class="value-display">0.00</span>
+    <script type="module">
+        import { DaisyBridge } from './daisy-bridge.js?v=2.0';
+
+        const daisy = new DaisyBridge();
+        let currentView = 'dashboard';
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type} slide-in`;
+            toast.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="text-${type === 'success' ? 'teal' : type === 'error' ? 'red' : 'yellow'}-400">
+                        ${type === 'success' ? '✓' : type === 'error' ? '✕' : '⚠'}
+                    </div>
+                    <div class="text-sm">${message}</div>
                 </div>
-            </div>
-
-            <div class="effect-section">
-                <div class="effect-title">Channel Bleed</div>
-                <div class="control-group">
-                    <label class="control-label">Mix</label>
-                    <input type="range" min="0" max="100" value="0" data-param="cross_bleed" data-scale="0.01">
-                    <span class="value-display">0.00</span>
-                </div>
-            </div>
-
-            <div class="effect-section">
-                <div class="effect-title">Stereo Width</div>
-                <div class="control-group">
-                    <label class="control-label">Width</label>
-                    <input type="range" min="0" max="200" value="100" data-param="stereo_width" data-scale="0.01">
-                    <span class="value-display">1.00</span>
-                </div>
-            </div>
-
-            <div class="effect-section">
-                <div class="effect-title">Reverb</div>
-                <div class="control-group">
-                    <label class="control-label">Time</label>
-                    <input type="range" min="0" max="100" value="50" data-param="reverb_time" data-scale="0.01">
-                    <span class="value-display">0.50</span>
-                </div>
-                <div class="control-group">
-                    <label class="control-label">Mix</label>
-                    <input type="range" min="0" max="100" value="0" data-param="reverb_mix" data-scale="0.01">
-                    <span class="value-display">0.00</span>
-                </div>
-            </div>
-
-            <div class="effect-section">
-                <div class="effect-title">Master Output</div>
-                <div class="control-group">
-                    <label class="control-label">Gain</label>
-                    <input type="range" min="0" max="200" value="100" data-param="master_gain" data-scale="0.01">
-                    <span class="value-display">1.00</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</main>
-
-<script type="module">
-    import { DaisyBridge } from './daisy-bridge.js?v=2.0';
-    const daisy = new DaisyBridge();
-
-    // Verify bridge has required methods
-    console.log('DaisyBridge loaded:', {
-        hasSendParam: typeof daisy.sendParam === 'function',
-        hasConnect: typeof daisy.connect === 'function'
-    });
-
-    // --- CONNECTION ---
-    document.getElementById('connectBtn').addEventListener('click', async () => {
-        const success = await daisy.connect();
-        if (success) {
-            document.getElementById('connectBtn').innerText = "LINK ESTABLISHED";
-            document.getElementById('led').classList.add('on');
+            `;
+            document.getElementById('toastContainer').appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
         }
-    });
 
-    // --- CONTROL BINDING ---
-    const allControls = document.querySelectorAll('input[data-param], select[data-param]');
+        // View switching
+        window.switchView = function(view) {
+            currentView = view;
+            document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
+            document.getElementById('firmwareView').classList.toggle('hidden', view !== 'firmware');
+            document.getElementById('pageTitle').textContent = view === 'dashboard' ? 'Dashboard' : 'Firmware';
 
-    allControls.forEach(control => {
-        const param = control.dataset.param;
-        const scale = parseFloat(control.dataset.scale) || 1;
-        const valueDisplay = control.parentElement.querySelector('.value-display');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-gray-800', 'text-teal-400', 'font-medium');
+                btn.classList.add('text-gray-400');
+            });
+            document.getElementById(`nav-${view}`).classList.remove('text-gray-400');
+            document.getElementById(`nav-${view}`).classList.add('bg-gray-800', 'text-teal-400', 'font-medium');
+        };
 
-        const updateValue = () => {
-            let value;
+        // Connection handling
+        window.handleConnect = async function() {
+            const btn = document.getElementById('connectBtn');
+            btn.disabled = true;
+            btn.textContent = 'CONNECTING...';
 
-            if (control.tagName === 'SELECT') {
-                value = parseFloat(control.value);
-                if (valueDisplay) {
-                    const selectedOption = control.options[control.selectedIndex].text;
-                    valueDisplay.textContent = selectedOption;
-                }
-            } else {
-                value = parseFloat(control.value) * scale;
-                if (valueDisplay) {
-                    // Format display value
-                    if (param.includes('filter_freq')) {
-                        valueDisplay.textContent = Math.round(value);
-                    } else {
-                        valueDisplay.textContent = value.toFixed(2);
-                    }
-                }
-            }
+            const success = await daisy.connect();
 
-            // Send to Daisy
-            if (daisy.isConnected && daisy.writer) {
-                if (typeof daisy.sendParam === 'function') {
-                    daisy.sendParam(param, value);
-                } else {
-                    // Fallback for old bridge version
-                    console.warn('Using fallback serial write');
-                    const message = `${param}:${value.toFixed(4)};\n`;
-                    daisy.writer.write(message).catch(err => console.error('Write failed:', err));
-                }
+            if (!success) {
+                btn.disabled = false;
+                btn.textContent = 'RETRY CONNECTION';
             }
         };
 
-        control.addEventListener('input', updateValue);
-        control.addEventListener('change', updateValue);
+        // Event listeners for connection status
+        window.addEventListener('daisy-connected', () => {
+            document.getElementById('statusDot').className = 'w-2 h-2 rounded-full bg-teal-500 status-pulse';
+            document.getElementById('statusText').textContent = 'Connected';
+            document.getElementById('statusText').className = 'text-xs text-teal-400';
+            document.getElementById('connectBtn').textContent = 'CONNECTED';
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('connectBtn').className = 'w-full mt-2 bg-teal-500 text-white font-medium py-2 px-4 rounded-lg cursor-not-allowed opacity-75';
+            showToast('Successfully connected to Daisy Seed', 'success');
+        });
 
-        // Initialize display
-        if (control.tagName === 'SELECT') {
-            if (valueDisplay) {
-                valueDisplay.textContent = control.options[control.selectedIndex].text;
+        window.addEventListener('daisy-disconnected', () => {
+            document.getElementById('statusDot').className = 'w-2 h-2 rounded-full bg-gray-600';
+            document.getElementById('statusText').textContent = 'Disconnected';
+            document.getElementById('statusText').className = 'text-xs text-gray-500';
+            document.getElementById('connectBtn').textContent = 'CONNECT';
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('connectBtn').className = 'w-full mt-2 bg-teal-500 hover:bg-teal-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200';
+            showToast('Disconnected from Daisy', 'warning');
+        });
+
+        window.addEventListener('daisy-reconnecting', (e) => {
+            document.getElementById('statusDot').className = 'w-2 h-2 rounded-full bg-yellow-500 animate-pulse';
+            document.getElementById('statusText').textContent = `Reconnecting (${e.detail.attempt}/3)...`;
+            document.getElementById('statusText').className = 'text-xs text-yellow-400';
+            showToast(`Reconnecting... Attempt ${e.detail.attempt}`, 'warning');
+        });
+
+        window.addEventListener('daisy-reconnected', () => {
+            showToast('Reconnected successfully!', 'success');
+        });
+
+        window.addEventListener('daisy-error', (e) => {
+            if (e.detail.critical) {
+                showToast(e.detail.message, 'error');
+            }
+        });
+
+        // Parameter definitions
+        const channelParams = [
+            { id: 'gain', name: 'Input Gain', min: 0, max: 2, step: 0.01, default: 1.0 },
+            { id: 'drive', name: 'Overdrive', min: 0, max: 1, step: 0.01, default: 0.0 },
+            { id: 'filter_mode', name: 'Filter Mode', type: 'select', options: [{v:0,n:'Lowpass'},{v:1,n:'Bandpass'},{v:2,n:'Highpass'}], default: 0 },
+            { id: 'filter_freq', name: 'Filter Cutoff', min: 20, max: 20000, step: 10, default: 10000, unit: 'Hz' },
+            { id: 'filter_res', name: 'Resonance', min: 0, max: 1, step: 0.01, default: 0.1 },
+            { id: 'delay_time', name: 'Delay Time', min: 0, max: 1, step: 0.01, default: 0.0, unit: 's' },
+            { id: 'delay_fb', name: 'Delay Feedback', min: 0, max: 0.95, step: 0.01, default: 0.0 },
+            { id: 'delay_mix', name: 'Delay Mix', min: 0, max: 1, step: 0.01, default: 0.0 },
+            { id: 'chorus_depth', name: 'Chorus Depth', min: 0, max: 1, step: 0.01, default: 0.0 },
+            { id: 'chorus_rate', name: 'Chorus Rate', min: 0.01, max: 10, step: 0.1, default: 0.5, unit: 'Hz' }
+        ];
+
+        const masterParams = [
+            { id: 'cross_mod', name: 'Cross Modulation', min: 0, max: 1, step: 0.01, default: 0.0 },
+            { id: 'cross_bleed', name: 'Channel Bleed', min: 0, max: 1, step: 0.01, default: 0.0 },
+            { id: 'stereo_width', name: 'Stereo Width', min: 0, max: 2, step: 0.01, default: 1.0 },
+            { id: 'reverb_time', name: 'Reverb Time', min: 0, max: 1, step: 0.01, default: 0.5 },
+            { id: 'reverb_mix', name: 'Reverb Mix', min: 0, max: 1, step: 0.01, default: 0.0 },
+            { id: 'master_gain', name: 'Master Gain', min: 0, max: 2, step: 0.01, default: 1.0 }
+        ];
+
+        // Create controls
+        function createControl(param, prefix) {
+            const paramName = prefix ? `${prefix}_${param.id}` : param.id;
+
+            if (param.type === 'select') {
+                const html = `
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-gray-300">${param.name}</label>
+                        <select id="${paramName}" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                            ${param.options.map(opt => `<option value="${opt.v}">${opt.n}</option>`).join('')}
+                        </select>
+                    </div>
+                `;
+                return html;
+            } else {
+                const html = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-sm font-medium text-gray-300">${param.name}</label>
+                            <span id="${paramName}-val" class="text-sm font-mono text-teal-400">${param.default}${param.unit || ''}</span>
+                        </div>
+                        <input
+                            type="range"
+                            id="${paramName}"
+                            min="${param.min}"
+                            max="${param.max}"
+                            step="${param.step}"
+                            value="${param.default}"
+                            class="w-full cursor-pointer"
+                        >
+                    </div>
+                `;
+                return html;
             }
         }
-    });
 
-</script>
+        // Render controls
+        document.getElementById('ch1-controls').innerHTML = channelParams.map(p => createControl(p, 'ch1')).join('');
+        document.getElementById('ch2-controls').innerHTML = channelParams.map(p => createControl(p, 'ch2')).join('');
+        document.getElementById('master-controls').innerHTML = masterParams.map(p => createControl(p, null)).join('');
+
+        // Attach event listeners
+        [...document.querySelectorAll('input[type="range"], select')].forEach(el => {
+            const updateFn = async () => {
+                const value = parseFloat(el.value);
+                const param = el.id;
+                const valDisplay = document.getElementById(`${param}-val`);
+
+                if (valDisplay) {
+                    const paramDef = [...channelParams, ...masterParams].find(p =>
+                        param.endsWith(p.id) || param === p.id
+                    );
+                    const unit = paramDef?.unit || '';
+                    const displayVal = paramDef?.id === 'filter_freq' ? Math.round(value) : value.toFixed(2);
+                    valDisplay.textContent = displayVal + unit;
+                }
+
+                if (daisy.isConnected) {
+                    await daisy.sendParam(param, value);
+                }
+            };
+
+            el.addEventListener('input', updateFn);
+            el.addEventListener('change', updateFn);
+        });
+
+        console.log('DP v2.0 - Production Ready');
+    </script>
 </body>
 </html>
