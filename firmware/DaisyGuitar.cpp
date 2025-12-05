@@ -21,13 +21,13 @@ DaisySeed hw;
 // Channel 1 Effects
 Overdrive drive1;
 Svf filter1;
-DelayLine<float, MAX_DELAY_SAMPLES> DSY_SDRAM_BSS del1;
+DelayLine<float, MAX_DELAY_SAMPLES> del1;
 Chorus chorus1;
 
 // Channel 2 Effects
 Overdrive drive2;
 Svf filter2;
-DelayLine<float, MAX_DELAY_SAMPLES> DSY_SDRAM_BSS del2;
+DelayLine<float, MAX_DELAY_SAMPLES> del2;
 Chorus chorus2;
 
 // Shared/Master Effects (Reverb removed for compatibility)
